@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = [ "synix", "synix-parser" ]
+
+[workspace.dependencies]
+syn = { version = "2.0.106", default-features = false, features = ["parsing", "proc-macro"] }
+proc-macro2 = { version = "1.0.101", features = ["span-locations"] }
+synix-parser.path = "./synix-parser"
