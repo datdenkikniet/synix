@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "synix", "synix-parser" ]
-default-members = [ "synix", "synix-parser" ]
+members = [ "synix", "synix-lexer", "synix-parser" ]
 
 [workspace.dependencies]
 syn = { version = "2.0.106", default-features = false, features = ["parsing", "proc-macro"] }
