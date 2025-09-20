@@ -1,6 +1,4 @@
-use proc_macro2::Span;
-
-use crate::lit::LitStr;
+use crate::{Spanned, lit::LitStr, span::Span};
 
 #[derive(Debug, Clone)]
 pub enum Ident {
@@ -9,10 +7,19 @@ pub enum Ident {
 }
 
 impl Ident {
-    pub fn span(&self) -> Span {
+    pub fn proc_macro_span(&self) -> proc_macro2::Span {
         match self {
             Ident::Ident(ident) => ident.span(),
-            Ident::Stringy(lit_str) => lit_str.span,
+            Ident::Stringy(lit_str) => lit_str.proc_macro_span(),
+        }
+    }
+}
+
+impl Spanned for Ident {
+    fn span(&self) -> Span {
+        match self {
+            Ident::Ident(ident) => ident.span().into(),
+            Ident::Stringy(lit_str) => lit_str.span(),
         }
     }
 }
@@ -69,7 +76,8 @@ impl syn::parse::Parse for Ident {
 
             Self::Stringy(LitStr {
                 value: lit_str.value(),
-                span: lit_str.span(),
+                span: lit_str.span().into(),
+                proc_macro_span: lit_str.span(),
             })
         } else {
             return Err(syn::Error::new(input.span(), "Expected ident"));

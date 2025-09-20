@@ -1,17 +1,27 @@
 mod attrset;
-mod r#let;
 mod ident;
+mod r#let;
+mod span;
 
+pub mod binary;
 pub mod lit;
 
 pub use attrset::AttrSet;
-pub use r#let::LetExpr;
 pub use ident::Ident;
+pub use r#let::LetExpr;
 
+use binary::BinaryExpr;
 use lit::Lit;
+use span::Span;
+
+use crate::binary::Operator;
 
 pub fn parse(input: &str) -> Result<Expr, syn::Error> {
     syn::parse_str(input)
+}
+
+pub trait Spanned {
+    fn span(&self) -> Span;
 }
 
 #[derive(Debug)]
@@ -20,6 +30,19 @@ pub enum Expr {
     Lit(Lit),
     Ident(Ident),
     AttrSet(AttrSet),
+    Binary(BinaryExpr),
+}
+
+impl Spanned for Expr {
+    fn span(&self) -> Span {
+        match self {
+            Expr::Let(let_expr) => let_expr.span(),
+            Expr::Lit(lit) => lit.span(),
+            Expr::Ident(ident) => ident.span(),
+            Expr::AttrSet(attr_set) => attr_set.span(),
+            Expr::Binary(binary_expr) => binary_expr.span(),
+        }
+    }
 }
 
 impl syn::parse::Parse for Expr {
@@ -45,6 +68,15 @@ impl syn::parse::Parse for Expr {
             ));
         };
 
-        Ok(result)
+        let after_operation = if let Some(operator) = Operator::peek_parse(input) {
+            let lhs = result;
+            let rhs: Expr = input.parse()?;
+
+            Self::Binary(BinaryExpr::new(lhs, operator, rhs))
+        } else {
+            result
+        };
+
+        Ok(after_operation)
     }
 }

@@ -6,7 +6,8 @@ fn basic_computation() {
         let
             x = 4;
             y = 5;
+            z = x + y;
         in
-            { x = x; inherit y; "test" = 5; }
+            { x = x; inherit y; "test" = 5; bruh = { bruh = 5 + 3 - 1; }; }
     };
 }
