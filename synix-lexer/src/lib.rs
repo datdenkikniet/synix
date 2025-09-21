@@ -62,6 +62,8 @@ pub trait Lex: Sized {
 
 impl Lex for TokenStream {
     fn lex(input: &mut LexBuffer) -> Result<Self> {
+        input.skip_ws();
+
         if input.peek().is_none() {
             Ok(Self::default())
         } else if Group::has_delimiter(input) {

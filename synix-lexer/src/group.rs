@@ -8,11 +8,8 @@ pub struct Group {
 }
 
 impl Group {
-    pub fn has_delimiter(buf: &LexBuffer) -> bool {
-        let mut fork = buf.fork();
-        fork.skip_ws();
-
-        match fork.peek() {
+    pub fn has_delimiter(buf: &mut LexBuffer) -> bool {
+        match buf.peek() {
             Some('[') | Some('(') | Some('{') => true,
             _ => false,
         }
@@ -25,8 +22,6 @@ impl Lex for Group {
 
         let start = buffer.current();
         let if_error = Span { start, end: start };
-
-        buffer.skip_ws();
 
         let (delimiter, closing) = match buffer.peek() {
             Some('[') => (Bracket, ']'),

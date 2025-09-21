@@ -30,8 +30,41 @@ literal! {
 impl Lex for LitStr {
     fn lex(buffer: &mut LexBuffer) -> crate::Result<Self> {
         if buffer.peek() == Some('"') {
+            let start = buffer.current();
             let _ = buffer.next();
-            todo!()
+
+            // TODO: handle escape sequences other than \"
+            let mut escaped = false;
+            let mut finished = false;
+            let mut value = String::new();
+            while let Some(char) = buffer.next() {
+                if char == '\\' {
+                    escaped = true;
+                    continue;
+                } else if char == '\r' || char == '\n' {
+                    return Err(Error::new(
+                        buffer.span_from(start),
+                        "Unterminated string. For multiline strings, use `'''`",
+                    ));
+                } else if char == '"' {
+                    if escaped {
+                        escaped = false;
+                    } else {
+                        finished = true;
+                        break;
+                    }
+                }
+
+                value.push(char);
+            }
+
+            let span = buffer.span_from(start);
+
+            if !finished {
+                return Err(Error::new(span, "Unterminated string."));
+            }
+
+            Ok(Self { value, span })
         } else if buffer.peek() == Some('\'') {
             let _ = buffer.next();
             todo!()
@@ -48,7 +81,6 @@ impl Lex for LitBool {
 
         let mut chars = [char::default(); 5];
 
-        buffer.skip_ws();
         buffer.fork().take(5).enumerate().for_each(|(idx, v)| {
             chars[idx] = v;
         });

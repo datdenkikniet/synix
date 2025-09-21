@@ -29,7 +29,10 @@ impl<'a> LexBuffer<'a> {
         }
     }
 
+    /// Returns a span that spans characters from start
+    /// until the previously-lexed character (inclusive).
     pub fn span_from(&self, start: LineColumn) -> Span {
+        // TODO: do the inclusive thing.
         Span {
             start,
             end: self.current,
