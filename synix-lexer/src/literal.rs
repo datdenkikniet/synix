@@ -1,4 +1,4 @@
-use crate::{Error, Lex, LexBuffer, Span};
+use crate::{Error, Lex, LexBuffer, Result, Span};
 
 #[derive(Debug)]
 pub enum Literal {
@@ -6,6 +6,42 @@ pub enum Literal {
     LitFloat(LitFloat),
     LitStr(LitStr),
     LitBool(LitBool),
+}
+
+impl Literal {
+    pub fn starts(buf: &LexBuffer) -> bool {
+        let as_bool: Result<LitBool> = buf.fork().lex();
+
+        if as_bool.is_ok() {
+            true
+        } else {
+            let char = if let Some(next) = buf.fork().peek() {
+                next
+            } else {
+                return false;
+            };
+
+            // TOOD: LitStrOrInt::starts()
+            char == '"' || char == '\''
+        }
+    }
+}
+
+impl Lex for Literal {
+    fn lex(buffer: &mut LexBuffer) -> Result<Self> {
+        let as_bool: Result<LitBool> = buffer.fork().lex();
+        let peeked = buffer.peek();
+
+        if as_bool.is_ok() {
+            let bool = buffer.lex()?;
+            Ok(Self::LitBool(bool))
+        } else if peeked == Some('"') || peeked == Some('\'') {
+            let str = buffer.lex()?;
+            Ok(Self::LitStr(str))
+        } else {
+            Err(Error::new(buffer.span(), "Expected literal."))
+        }
+    }
 }
 
 macro_rules! literal {

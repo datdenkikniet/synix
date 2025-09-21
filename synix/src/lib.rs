@@ -53,14 +53,8 @@ impl Parse for Expr {
         } else if input.peek(token::Brace) {
             let attrset: AttrSet = input.parse()?;
             Self::AttrSet(attrset)
-        } else if input.peek(syn::Ident) {
-            let ident: Ident = input.parse()?;
-            Self::Ident(ident)
-        } else if input.peek(syn::Lit) {
-            let literal: Lit = input.parse()?;
-            Self::Lit(literal)
         } else {
-            return Err(syn::Error::new(
+            return Err(Error::new(
                 input.span(),
                 "Unexpected tokens in input. Expected expression",
             ));
@@ -82,15 +76,31 @@ impl Parse for Expr {
 struct ParseBuffer {}
 
 impl ParseBuffer {
-    pub fn peek<T: Parse>() -> bool {
+    pub fn peek(t: Peek) -> bool {
         todo!()
     }
 
     pub fn parse<T: Parse>() -> Result<T> {
         todo!()
     }
+
+    pub fn fork(&self) -> Self {
+        todo!()
+    }
 }
 
 pub trait Parse: Sized {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self>;
+}
+
+pub trait Peek {
+    fn peek(buffer: &ParseBuffer) -> bool;
+}
+
+impl<T: Parse> Peek for T {
+    fn peek(buffer: &ParseBuffer) -> bool {
+        let mut forked = buffer.fork();
+
+        buffer.parse(&mut forked).is_ok()
+    }
 }

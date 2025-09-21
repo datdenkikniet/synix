@@ -5,8 +5,7 @@ mod ident;
 pub mod literal;
 pub mod punct;
 mod span;
-
-use std::str::FromStr;
+mod token_stream;
 
 pub use buffer::LexBuffer;
 pub use error::Error;
@@ -15,32 +14,9 @@ pub use ident::Ident;
 use literal::Literal;
 use punct::Punct;
 pub use span::Span;
+pub use token_stream::TokenStream;
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, Default)]
-pub struct TokenStream {
-    pub trees: Vec<TokenTree>,
-}
-
-impl TokenStream {
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.trees.is_empty()
-    }
-}
-
-impl FromStr for TokenStream {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut buffer = LexBuffer::new(s);
-        buffer.lex()
-    }
-}
 
 #[derive(Debug)]
 pub enum TokenTree {
@@ -66,10 +42,20 @@ impl Lex for TokenStream {
 
         if input.peek().is_none() {
             Ok(Self::default())
-        } else if Group::has_delimiter(input) {
-            let group: Group = input.lex()?;
+        } else if Group::starts(input) {
+            let group = input.lex()?;
             Ok(Self {
                 trees: vec![TokenTree::Group(group)],
+            })
+        } else if Literal::starts(input) {
+            let lit = input.lex()?;
+            Ok(Self {
+                trees: vec![TokenTree::Literal(lit)],
+            })
+        } else if Ident::starts(input.peek()) {
+            let ident = input.lex()?;
+            Ok(Self {
+                trees: vec![TokenTree::Ident(ident)],
             })
         } else {
             todo!()

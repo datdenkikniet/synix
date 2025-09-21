@@ -1,18 +1,9 @@
-use crate::{Spanned, lit::LitStr, span::Span};
+use crate::{Parse, ParseBuffer, Result, Spanned, lit::LitStr, span::Span};
 
 #[derive(Debug, Clone)]
 pub enum Ident {
-    Ident(syn::Ident),
+    Ident(synix_lexer::Ident),
     Stringy(LitStr),
-}
-
-impl Ident {
-    pub fn proc_macro_span(&self) -> proc_macro2::Span {
-        match self {
-            Ident::Ident(ident) => ident.span(),
-            Ident::Stringy(lit_str) => lit_str.proc_macro_span(),
-        }
-    }
 }
 
 impl Spanned for Ident {
@@ -62,8 +53,8 @@ impl PartialEq<&str> for Ident {
     }
 }
 
-impl syn::parse::Parse for Ident {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+impl Parse for Ident {
+    fn parse(input: &mut ParseBuffer) -> Result<Self> {
         let result = if input.peek(syn::Ident) {
             let ident: syn::Ident = input.parse()?;
             Self::Ident(ident)

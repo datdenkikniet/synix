@@ -8,7 +8,7 @@ pub struct Group {
 }
 
 impl Group {
-    pub fn has_delimiter(buf: &mut LexBuffer) -> bool {
+    pub fn starts(buf: &mut LexBuffer) -> bool {
         match buf.peek() {
             Some('[') | Some('(') | Some('{') => true,
             _ => false,
