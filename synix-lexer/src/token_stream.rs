@@ -2,12 +2,16 @@ use std::str::FromStr;
 
 use crate::{Error, LexBuffer, TokenTree};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TokenStream {
-    pub trees: Vec<TokenTree>,
+    trees: Vec<TokenTree>,
 }
 
 impl TokenStream {
+    pub(crate) fn new(trees: Vec<TokenTree>) -> Self {
+        Self { trees }
+    }
+
     pub fn empty() -> Self {
         Self::default()
     }
@@ -17,6 +21,13 @@ impl TokenStream {
     }
 }
 
+impl AsRef<[TokenTree]> for TokenStream {
+    fn as_ref(&self) -> &[TokenTree] {
+        &self.trees
+    }
+}
+
+#[derive(Clone)]
 pub struct IntoIter {
     inner: std::vec::IntoIter<TokenTree>,
 }

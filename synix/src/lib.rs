@@ -1,91 +1,96 @@
-mod attrset;
-mod error;
-mod ident;
-mod r#let;
-mod span;
+use std::str::FromStr;
 
-pub mod binary;
+mod error;
+mod r#let;
+
+pub mod ident;
 pub mod lit;
 pub mod token;
+pub use r#let::ExprLet;
 
-pub use attrset::AttrSet;
 pub use error::Error;
 pub use ident::Ident;
-pub use r#let::LetExpr;
+use synix_lexer::{LineColumn, Span, TokenStream, TokenTree};
+
+use crate::lit::ExprLit;
 pub type Result<T> = core::result::Result<T, Error>;
 
-use binary::BinaryExpr;
-use lit::Lit;
-use span::Span;
-
-use crate::binary::Operator;
-
-pub trait Spanned {
-    fn span(&self) -> Span;
+pub fn parse(input: &str) -> Result<Expr> {
+    let lexed = TokenStream::from_str(input)?;
+    let mut buffer = ParseBuffer::new(lexed.as_ref());
+    buffer.parse()
 }
 
 #[derive(Debug)]
 pub enum Expr {
-    Let(LetExpr),
-    Lit(Lit),
-    Ident(Ident),
-    AttrSet(AttrSet),
-    Binary(BinaryExpr),
-}
-
-impl Spanned for Expr {
-    fn span(&self) -> Span {
-        match self {
-            Expr::Let(let_expr) => let_expr.span(),
-            Expr::Lit(lit) => lit.span(),
-            Expr::Ident(ident) => ident.span(),
-            Expr::AttrSet(attr_set) => attr_set.span(),
-            Expr::Binary(binary_expr) => binary_expr.span(),
-        }
-    }
+    Let(ExprLet),
+    Lit(ExprLit),
 }
 
 impl Parse for Expr {
     fn parse(input: &mut ParseBuffer) -> Result<Self> {
-        let result = if input.peek(Token![let]) {
-            let r#let: LetExpr = input.parse()?;
-            Self::Let(r#let)
-        } else if input.peek(token::Brace) {
-            let attrset: AttrSet = input.parse()?;
-            Self::AttrSet(attrset)
+        let output = if ExprLit::peek(input) {
+            let lit = input.parse()?;
+            Self::Lit(lit)
+        } else if ExprLet::peek(input) {
+            let let_ = input.parse()?;
+            Self::Let(let_)
         } else {
-            return Err(Error::new(
-                input.span(),
-                "Unexpected tokens in input. Expected expression",
-            ));
+            return Err(Error::new(input.span(), "Expected expr."));
         };
 
-        let after_operation = if let Some(operator) = Operator::peek_parse(input) {
-            let lhs = result;
-            let rhs: Expr = input.parse()?;
-
-            Self::Binary(BinaryExpr::new(lhs, operator, rhs))
-        } else {
-            result
-        };
-
-        Ok(after_operation)
+        Ok(output)
     }
 }
 
-struct ParseBuffer {}
+#[derive(Debug, Clone, Copy)]
+pub struct ParseBuffer<'a> {
+    trees: &'a [TokenTree],
+}
 
-impl ParseBuffer {
-    pub fn peek(t: Peek) -> bool {
-        todo!()
+impl<'a> ParseBuffer<'a> {
+    pub fn new(trees: &'a [TokenTree]) -> Self {
+        Self { trees }
     }
 
-    pub fn parse<T: Parse>() -> Result<T> {
-        todo!()
+    pub fn span(&self) -> Span {
+        let start = LineColumn { line: 0, column: 0 };
+        Span::new(start, start)
+    }
+
+    pub fn parse<T: Parse>(&mut self) -> Result<T> {
+        T::parse(self)
     }
 
     pub fn fork(&self) -> Self {
-        todo!()
+        self.clone()
+    }
+
+    pub(crate) fn peek_tree(&self) -> Option<&'a TokenTree> {
+        self.trees.get(0)
+    }
+}
+
+impl<'a> Iterator for ParseBuffer<'a> {
+    type Item = &'a TokenTree;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(current) = self.trees.get(0) {
+            self.trees = &self.trees[1..];
+            Some(current)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.trees.len(), Some(self.trees.len()))
+    }
+}
+
+impl ExactSizeIterator for ParseBuffer<'_> {
+    fn len(&self) -> usize {
+        self.trees.len()
     }
 }
 
@@ -94,13 +99,5 @@ pub trait Parse: Sized {
 }
 
 pub trait Peek {
-    fn peek(buffer: &ParseBuffer) -> bool;
-}
-
-impl<T: Parse> Peek for T {
-    fn peek(buffer: &ParseBuffer) -> bool {
-        let mut forked = buffer.fork();
-
-        buffer.parse(&mut forked).is_ok()
-    }
+    fn peek(input: &ParseBuffer) -> bool;
 }

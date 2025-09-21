@@ -65,7 +65,13 @@ pub enum Spacing {
     Joint,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Spacing {
+    pub fn is_joint(&self) -> bool {
+        self == &Self::Joint
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Char {
     Semicolon,
     Colon,

@@ -1,6 +1,6 @@
 use crate::{Error, Lex, LexBuffer, Span};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ident {
     ident: String,
     pub span: Span,
@@ -12,7 +12,7 @@ impl Ident {
     }
 
     fn allowed(c: char) -> bool {
-        c.is_alphanumeric() || c == '_'
+        c.is_alphanumeric() || c == '_' || c == '\''
     }
 
     pub fn starts(char: Option<char>) -> bool {
@@ -22,21 +22,21 @@ impl Ident {
             return false;
         };
 
-        char.is_alphabetic()
+        char.is_alphabetic() || char == '_'
     }
 }
 
 impl Lex for Ident {
     fn lex(buffer: &mut LexBuffer) -> crate::Result<Self> {
-        let mut ident = if let Some(char) = buffer.peek()
-            && char.is_alphabetic()
-        {
+        let start = buffer.current();
+
+        let mut ident = if Self::starts(buffer.peek()) {
+            let char = buffer.next().expect("This cannot be empty");
             String::from(char)
         } else {
             return Err(Error::new(buffer.span(), "Expected ident"));
         };
 
-        let start = buffer.current();
         while let Some(char) = buffer.peek()
             && Self::allowed(char)
         {

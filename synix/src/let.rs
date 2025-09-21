@@ -1,49 +1,42 @@
-use syn::Ident;
-
-use crate::{Expr, Spanned, span::Span};
+use crate::*;
 
 #[derive(Debug)]
-pub struct LetExpr {
-    pub assignments: Vec<(Ident, Expr)>,
-    pub in_: Box<Expr>,
-    pub span: Span,
+pub struct ExprLet {
+    pub let_: Token![let],
+    pub assignments: Vec<(Ident, Token![=], Expr, Token![;])>,
+    pub in_: Token![in],
+    pub body: Box<Expr>,
 }
 
-impl syn::parse::Parse for LetExpr {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let span_start: Span = input.span().into();
+impl Parse for ExprLet {
+    fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
+        let let_ = buffer.parse()?;
 
-        use syn::{Ident, Token};
+        let mut assignments = Vec::new();
+        while !<Token![in]>::peek(buffer) {
+            let ident = buffer.parse()?;
+            let eq = buffer.parse()?;
+            let expr = buffer.parse()?;
+            let semi = buffer.parse()?;
 
-        let _let: Token![let] = input.parse()?;
-
-        let mut statements = Vec::new();
-        while let Ok(ident) = input.parse::<Ident>() {
-            let _equals: Token![=] = input.parse()?;
-            let value: Expr = input.parse()?;
-            let _semicolon: Token![;] = input.parse()?;
-
-            statements.push((ident, value));
+            assignments.push((ident, eq, expr, semi));
         }
 
-        let _in: Token![in] = input.parse()?;
-
-        let in_ = input.parse()?;
-
-        let span_end: Span = input.span().into();
-
-        let span = span_start.join(&span_end);
+        let in_ = buffer.parse()?;
+        let body = buffer.parse()?;
 
         Ok(Self {
-            assignments: statements,
+            let_,
+            assignments,
             in_,
-            span,
+            body: Box::new(body),
         })
     }
 }
 
-impl Spanned for LetExpr {
-    fn span(&self) -> crate::span::Span {
-        self.span.clone()
+impl Peek for ExprLet {
+    fn peek(input: &ParseBuffer) -> bool {
+        let mut input = input.fork();
+        <Token![let]>::parse(&mut input).is_ok()
     }
 }

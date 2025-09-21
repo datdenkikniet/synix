@@ -1,6 +1,6 @@
 use crate::{Error, Lex, LexBuffer, Span, TokenStream};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Group {
     pub delimiter: Delimiter,
     pub inner: TokenStream,
@@ -70,7 +70,7 @@ impl Lex for Group {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Delimiter {
     Brace,
     Paren,

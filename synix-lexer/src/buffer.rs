@@ -69,6 +69,7 @@ impl<'a> LexBuffer<'a> {
             let value = self.inner.next()?;
 
             self.current_offset += value.len_utf8();
+            self.current.column += 1;
 
             if value == '\n' {
                 self.current = LineColumn {
@@ -83,6 +84,10 @@ impl<'a> LexBuffer<'a> {
 
     pub fn lex<T: Lex>(&mut self) -> crate::Result<T> {
         T::lex(self)
+    }
+
+    pub fn is_empty(&mut self) -> bool {
+        self.inner.peek().is_none()
     }
 }
 

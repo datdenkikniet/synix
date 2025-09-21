@@ -13,4 +13,12 @@ impl Error {
             message: message.into(),
         }
     }
+
+    pub fn span(&self) -> Span {
+        self.span.clone()
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
 }

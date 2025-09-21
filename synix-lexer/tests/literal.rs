@@ -1,39 +1,7 @@
 use synix_lexer::{
     Lex, LexBuffer,
-    literal::{LitBool, LitStr},
+    literal::{LitStr, Literal},
 };
-
-#[test]
-pub fn r#true() {
-    let mut buffer = LexBuffer::new("true");
-
-    let bool = LitBool::lex(&mut buffer).unwrap();
-
-    assert_eq!(bool.value, true);
-}
-
-#[test]
-pub fn r#false() {
-    let mut buffer = LexBuffer::new("false");
-
-    let bool = LitBool::lex(&mut buffer).unwrap();
-
-    assert_eq!(bool.value, false);
-}
-
-#[test]
-pub fn not_true() {
-    let mut buffer = LexBuffer::new("trueb");
-
-    assert!(LitBool::lex(&mut buffer).is_err());
-}
-
-#[test]
-pub fn not_false() {
-    let mut buffer = LexBuffer::new("falsez");
-
-    assert!(LitBool::lex(&mut buffer).is_err());
-}
 
 #[test]
 pub fn string() {
@@ -45,11 +13,24 @@ pub fn string() {
 }
 
 #[test]
-pub fn multiline_string() {
+pub fn multiline_string_wrong_delimiter() {
     let mut buffer = LexBuffer::new(
         r#""A
                 string""#,
     );
 
     assert!(LitStr::lex(&mut buffer).is_err());
+}
+
+#[test]
+pub fn long_integer() {
+    let digits = "1049812093810948019283091823091804918203";
+    let mut buffer = LexBuffer::new(digits);
+
+    let output = match Literal::lex(&mut buffer) {
+        Ok(Literal::Int(int)) => int,
+        v => panic!("Expected literal int, got {v:?}"),
+    };
+
+    assert_eq!(output.digits, digits);
 }

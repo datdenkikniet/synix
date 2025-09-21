@@ -1,85 +1,56 @@
-use crate::{Spanned, span::Span};
+use synix_lexer::Span;
+use synix_lexer::TokenTree;
+use synix_lexer::literal::Literal;
+pub use synix_lexer::literal::{LitFloat, LitInt, LitStr};
 
-#[derive(Debug, Clone)]
-pub enum Lit {
-    Bool(LitBool),
-    String(LitStr),
+use crate::Error;
+use crate::Parse;
+use crate::Peek;
+
+#[derive(Debug)]
+pub enum ExprLit {
     Int(LitInt),
     Float(LitFloat),
+    Str(LitStr),
+    Bool(LitBool),
 }
 
-impl Spanned for Lit {
-    fn span(&self) -> Span {
-        match self {
-            Lit::Bool(lit_bool) => lit_bool.span(),
-            Lit::String(lit_str) => lit_str.span(),
-            Lit::Int(lit_int) => lit_int.span(),
-            Lit::Float(lit_float) => lit_float.span(),
-        }
-    }
-}
-
-impl syn::parse::Parse for Lit {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let literal: syn::Lit = input.parse()?;
-        let span = literal.span();
-
-        let literal = match literal {
-            syn::Lit::Str(lit_str) => Self::String(LitStr {
-                value: lit_str.value(),
-                span: span.into(),
-                proc_macro_span: span,
-            }),
-            syn::Lit::Int(lit_int) => Self::Int(LitInt {
-                digits: lit_int.base10_digits().to_string(),
-                span: span.into(),
-                proc_macro_span: span,
-            }),
-            syn::Lit::Float(lit_float) => Self::Float(LitFloat {
-                digits: lit_float.base10_digits().to_string(),
-                span: span.into(),
-                proc_macro_span: span,
-            }),
-            syn::Lit::Bool(lit_bool) => Self::Bool(LitBool {
-                value: lit_bool.value(),
-                span: span.into(),
-                proc_macro_span: span,
-            }),
-            _ => return Err(syn::Error::new(literal.span(), "Unsupported literal type.")),
+impl Parse for ExprLit {
+    fn parse(buffer: &mut crate::ParseBuffer) -> crate::Result<Self> {
+        let next = if buffer.peek_tree().is_some() {
+            buffer.next().expect("There's a tree")
+        } else {
+            return Err(Error::new(
+                buffer.span(),
+                "Expected literal, got end of input",
+            ));
         };
 
-        Ok(literal)
+        let output = match next {
+            TokenTree::Literal(Literal::Int(int)) => Self::Int(int.clone()),
+            TokenTree::Literal(Literal::Float(float)) => Self::Float(float.clone()),
+            TokenTree::Literal(Literal::Str(str)) => Self::Str(str.clone()),
+            TokenTree::Ident(ident) if ident.ident() == "true" || ident.ident() == "false" => {
+                Self::Bool(LitBool {
+                    span: ident.span.clone(),
+                    value: ident.ident() == "true",
+                })
+            }
+            v => return Err(Error::new(v.span(), "Expected literal.")),
+        };
+
+        Ok(output)
     }
 }
 
-macro_rules! literal {
-    ($($name:ident, $value_name:ident = $value:ty),*$(,)?) => {
-        $(
-            #[derive(Debug, Clone)]
-            pub struct $name {
-                pub $value_name: $value,
-                pub span: Span,
-                pub proc_macro_span: proc_macro2::Span,
-            }
-
-            impl $name {
-                pub fn proc_macro_span(&self) -> proc_macro2::Span {
-                    self.proc_macro_span.clone()
-                }
-            }
-
-            impl Spanned for $name {
-                fn span(&self) -> Span {
-                    self.span.clone()
-                }
-            }
-        )*
-    };
+impl Peek for ExprLit {
+    fn peek(input: &crate::ParseBuffer) -> bool {
+        Self::parse(&mut input.fork()).is_ok()
+    }
 }
 
-literal! {
-    LitBool, value = bool,
-    LitStr, value = String,
-    LitInt, digits = String,
-    LitFloat, digits = String,
+#[derive(Debug)]
+pub struct LitBool {
+    pub span: Span,
+    pub value: bool,
 }

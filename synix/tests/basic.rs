@@ -1,16 +1,19 @@
 use std::iter::repeat_n;
 
-use synix_parser::Expr;
+use synix::Expr;
 
 fn parse_pretty_print(str: &str) -> Expr {
-    let err = match synix_parser::parse(str) {
+    let err = match synix::parse(str) {
         Ok(expr) => return expr,
         Err(e) => e,
     };
 
     let start = err.span().start();
     let end = err.span().end();
-    let len = end.column - start.column;
+
+    println!("Start: {start:?}, end: {end:?}");
+
+    let len = end.column - start.column + 1;
     assert_eq!(start.line, end.line);
 
     let arrows: String = repeat_n(' ', start.column)
@@ -29,7 +32,7 @@ fn parse_pretty_print(str: &str) -> Expr {
         println!("{leftover}");
     }
 
-    panic!();
+    panic!("{err:?}");
 }
 
 #[test]
@@ -37,9 +40,9 @@ pub fn basic() {
     let nix = r#"
         let
             x = 1;
-            y = 1.232e4;
+            y = "haha";
         in
-            { x = x; y = y; }
+            1
     "#;
 
     let expr = parse_pretty_print(nix);

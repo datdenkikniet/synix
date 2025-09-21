@@ -1,43 +1,44 @@
 use crate::{Error, Lex, LexBuffer, Result, Span};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
-    LitInt(LitInt),
-    LitFloat(LitFloat),
-    LitStr(LitStr),
-    LitBool(LitBool),
+    Int(LitInt),
+    Float(LitFloat),
+    Str(LitStr),
 }
 
 impl Literal {
-    pub fn starts(buf: &LexBuffer) -> bool {
-        let as_bool: Result<LitBool> = buf.fork().lex();
-
-        if as_bool.is_ok() {
-            true
+    pub fn starts(char: Option<char>) -> bool {
+        let char = if let Some(next) = char {
+            next
         } else {
-            let char = if let Some(next) = buf.fork().peek() {
-                next
-            } else {
-                return false;
-            };
+            return false;
+        };
 
-            // TOOD: LitStrOrInt::starts()
-            char == '"' || char == '\''
-        }
+        char == '"' || char == '\'' || char.is_numeric()
     }
 }
 
 impl Lex for Literal {
     fn lex(buffer: &mut LexBuffer) -> Result<Self> {
-        let as_bool: Result<LitBool> = buffer.fork().lex();
         let peeked = buffer.peek();
 
-        if as_bool.is_ok() {
-            let bool = buffer.lex()?;
-            Ok(Self::LitBool(bool))
-        } else if peeked == Some('"') || peeked == Some('\'') {
+        if peeked == Some('"') || peeked == Some('\'') {
             let str = buffer.lex()?;
-            Ok(Self::LitStr(str))
+            Ok(Self::Str(str))
+        } else if peeked.is_some_and(|v| v.is_numeric()) {
+            let num: IntOrFloat = buffer.lex()?;
+
+            match num.kind {
+                Kind::Int => Ok(Self::Int(LitInt {
+                    digits: num.digits,
+                    span: num.span,
+                })),
+                Kind::Float => Ok(Self::Float(LitFloat {
+                    digits: num.digits,
+                    span: num.span,
+                })),
+            }
         } else {
             Err(Error::new(buffer.span(), "Expected literal."))
         }
@@ -57,7 +58,6 @@ macro_rules! literal {
 }
 
 literal! {
-    LitBool, value = bool,
     LitStr, value = String,
     LitInt, digits = String,
     LitFloat, digits = String,
@@ -100,47 +100,64 @@ impl Lex for LitStr {
                 return Err(Error::new(span, "Unterminated string."));
             }
 
+            // Nix does not require string literals to be whitespace-separated from
+            // successive token trees.
+
             Ok(Self { value, span })
         } else if buffer.peek() == Some('\'') {
             let _ = buffer.next();
-            todo!()
+            todo!("Multiline strings")
         } else {
             Err(Error::new(buffer.span(), "Expected string literal"))
         }
     }
 }
 
-impl Lex for LitBool {
-    fn lex(buffer: &mut LexBuffer) -> crate::Result<Self> {
-        const TRUE: [char; 4] = ['t', 'r', 'u', 'e'];
-        const FALSE: [char; 5] = ['f', 'a', 'l', 's', 'e'];
+enum Kind {
+    Int,
+    #[expect(unused)]
+    Float,
+}
 
-        let mut chars = [char::default(); 5];
+struct IntOrFloat {
+    kind: Kind,
+    digits: String,
+    span: Span,
+}
 
-        buffer.fork().take(5).enumerate().for_each(|(idx, v)| {
-            chars[idx] = v;
-        });
-
-        let value = if &chars[..4] == &TRUE[..] {
-            true
-        } else if chars == FALSE {
-            false
+impl Lex for IntOrFloat {
+    fn lex(buffer: &mut LexBuffer) -> Result<Self> {
+        let start = buffer.current();
+        let mut digits = if buffer.peek().is_some_and(|v| v.is_numeric()) {
+            let digit = buffer.next().expect("There is a character.");
+            String::from(digit)
         } else {
-            return Err(Error::new(buffer.span(), format!("Expected bool")));
+            let msg = if let Some(peeked) = buffer.peek() {
+                format!(
+                    "Invalid character `{}` integer (floats are not supported yet).",
+                    peeked
+                )
+            } else {
+                format!("Expected integer (floats are not supported yet), got end of input.")
+            };
+
+            return Err(Error::new(buffer.span(), msg));
         };
 
-        let start = buffer.current();
-        let len = if value { 4 } else { 5 };
-        let _ = (0..len).for_each(|_| {
-            buffer.next();
-        });
-
-        let span = buffer.span_from(start);
-
-        if buffer.peek().is_none() || buffer.skip_ws() {
-            Ok(Self { span, value })
-        } else {
-            return Err(Error::new(span, format!("Expected bool")));
+        while let Some(digit) = buffer.peek()
+            && digit.is_numeric()
+        {
+            let _ = buffer.next();
+            digits.push(digit);
         }
+
+        // Nix does not require integer literals to be whitespace-separated from
+        // successive token trees.
+
+        Ok(IntOrFloat {
+            digits,
+            kind: Kind::Int,
+            span: buffer.span_from(start),
+        })
     }
 }
