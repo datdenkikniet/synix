@@ -32,7 +32,7 @@ impl Parse for ExprLit {
             TokenTree::Literal(Literal::Str(str)) => Self::Str(str.clone()),
             TokenTree::Ident(ident) if ident.ident() == "true" || ident.ident() == "false" => {
                 Self::Bool(LitBool {
-                    span: ident.span.clone(),
+                    span: ident.span(),
                     value: ident.ident() == "true",
                 })
             }
@@ -40,6 +40,17 @@ impl Parse for ExprLit {
         };
 
         Ok(output)
+    }
+}
+
+impl ExprLit {
+    pub fn span(&self) -> Span {
+        match self {
+            ExprLit::Int(lit_int) => lit_int.span(),
+            ExprLit::Float(lit_float) => lit_float.span(),
+            ExprLit::Str(lit_str) => lit_str.span(),
+            ExprLit::Bool(lit_bool) => lit_bool.span(),
+        }
     }
 }
 
@@ -51,6 +62,12 @@ impl Peek for ExprLit {
 
 #[derive(Debug)]
 pub struct LitBool {
-    pub span: Span,
+    span: Span,
     pub value: bool,
+}
+
+impl LitBool {
+    pub fn span(&self) -> Span {
+        self.span.clone()
+    }
 }

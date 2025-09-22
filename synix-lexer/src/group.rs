@@ -4,10 +4,14 @@ use crate::{Error, Lex, LexBuffer, Span, TokenStream};
 pub struct Group {
     pub delimiter: Delimiter,
     pub inner: TokenStream,
-    pub span: Span,
+    span: Span,
 }
 
 impl Group {
+    pub fn span(&self) -> Span {
+        self.span.clone()
+    }
+
     pub fn starts(buf: &mut LexBuffer) -> bool {
         match buf.peek() {
             Some('[') | Some('(') | Some('{') => true,
@@ -23,7 +27,7 @@ impl Lex for Group {
         let start = buffer.current();
         let if_error = Span { start, end: start };
 
-        let (delimiter, closing) = match buffer.peek() {
+        let (delimiter, closing) = match buffer.next() {
             Some('[') => (Bracket, ']'),
             Some('(') => (Paren, ')'),
             Some('{') => (Brace, '}'),
@@ -31,14 +35,23 @@ impl Lex for Group {
             None => return Err(Error::new(if_error, "Unexpected end of input.")),
         };
 
-        // Consume character
-        let _ = buffer.next();
-
         buffer.skip_ws();
         let next = buffer.peek();
 
         let inner = if next != Some(closing) {
-            buffer.lex()?
+            let mut trees = Vec::new();
+            loop {
+                let next_tree = buffer.lex()?;
+                trees.push(next_tree);
+
+                buffer.skip_ws();
+
+                if buffer.peek() == Some(closing) {
+                    break;
+                }
+            }
+
+            TokenStream::new(trees)
         } else {
             Default::default()
         };

@@ -17,3 +17,13 @@ macro_rules! test_empty {
 test_empty!(brace, "{}", Brace);
 test_empty!(bracket, "[]", Bracket);
 test_empty!(parent, "()", Paren);
+
+#[test]
+pub fn bruh() {
+    let mut buffer = LexBuffer::new("{ a, b }");
+
+    let group = Group::lex(&mut buffer);
+
+    assert!(buffer.is_empty());
+    assert!(group.is_ok());
+}

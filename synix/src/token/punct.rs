@@ -1,6 +1,6 @@
 use synix_lexer::{Span, TokenTree, punct::Char};
 
-use crate::{ParseBuffer, Result};
+use crate::{Error, ParseBuffer, Result};
 
 fn punct_helper<const N: usize>(
     buffer: &mut ParseBuffer,
@@ -12,21 +12,23 @@ fn punct_helper<const N: usize>(
     let mut chars = chars.into_iter();
 
     while let Some(next) = chars.next() {
-        let punct = if let Some(TokenTree::Punct(punct)) = buffer.next() {
+        let punct = buffer.next();
+        let punct = if let Some(TokenTree::Punct(punct)) = punct {
             punct
         } else {
             let msg = format!("Expected `{}`", repr);
-            return Err(crate::Error::new(buffer.span(), msg));
+            let span = punct.map(|v| v.span()).unwrap_or(buffer.span());
+            return Err(Error::new(span, msg));
         };
 
         if next != punct.ch {
-            let msg = format!("Expected `{}`", repr);
-            return Err(crate::Error::new(buffer.span(), msg));
+            let msg = format!("Expected `{}`, got `{}`", repr, punct.ch);
+            return Err(Error::new(punct.span(), msg));
         }
 
         if chars.len() != 0 && !punct.spacing.is_joint() {
             let msg = format!("Expected `{}`", repr);
-            return Err(crate::Error::new(buffer.span(), msg));
+            return Err(Error::new(punct.span(), msg));
         }
     }
 
@@ -57,6 +59,12 @@ macro_rules! punct_tokens {
                     let span = punct_helper(buffer, stringify!($name), [$(Char::$char,)*])?;
 
                     Ok(Self{ span })
+                }
+            }
+
+            impl crate::Peek for $ty {
+                fn peek(buffer: &ParseBuffer) -> bool {
+                    <Self as crate::Parse>::parse(&mut buffer.fork()).is_ok()
                 }
             }
         )*

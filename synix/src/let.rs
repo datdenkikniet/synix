@@ -8,6 +8,22 @@ pub struct ExprLet {
     pub body: Box<Expr>,
 }
 
+impl ExprLet {
+    pub fn span(&self) -> Span {
+        let assignments = self.assignments.iter().fold(
+            self.let_.span.clone(),
+            |let_, (ident, eq, expr, semi)| {
+                let_.join(&ident.span())
+                    .join(&eq.span)
+                    .join(&expr.span())
+                    .join(&semi.span)
+            },
+        );
+
+        assignments.join(&self.in_.span).join(&self.body.span())
+    }
+}
+
 impl Parse for ExprLet {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let let_ = buffer.parse()?;

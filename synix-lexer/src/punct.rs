@@ -1,12 +1,19 @@
-use crate::{Error, Lex, LexBuffer};
+use std::fmt::Write;
+
+use crate::{Error, Lex, LexBuffer, Span};
 
 #[derive(Debug, Clone)]
 pub struct Punct {
     pub spacing: Spacing,
     pub ch: Char,
+    span: Span,
 }
 
 impl Punct {
+    pub fn span(&self) -> Span {
+        self.span.clone()
+    }
+
     pub fn peek(buf: &LexBuffer) -> bool {
         let mut buf = buf.fork();
 
@@ -21,16 +28,17 @@ impl Lex for Punct {
         let err = |v| Error::new(span, format!("Expected punct, got {v:?}"));
 
         macro_rules ! do_map {
-            ($($char:literal => $value:ident)*) => {
+            ($($char:literal => $value:ident)*) => {{
                 match buffer.next() {
                     $(
                         Some($char) => Char::$value,
                     )*
                     v => return Err(err(v)),
                 }
-            }
+            }}
         }
 
+        let start = buffer.current();
         let ch = do_map!(
             ';' => Semicolon
             ':' => Colon
@@ -48,6 +56,7 @@ impl Lex for Punct {
             '|' => Pipe
             '/' => Slash
         );
+        let span = buffer.span_from(start);
 
         let spacing = if buffer.peek().is_none() || buffer.skip_ws() {
             Spacing::Alone
@@ -55,7 +64,7 @@ impl Lex for Punct {
             Spacing::Joint
         };
 
-        Ok(Punct { spacing, ch })
+        Ok(Punct { spacing, ch, span })
     }
 }
 
@@ -88,4 +97,28 @@ pub enum Char {
     Ampersand,
     Pipe,
     Slash,
+}
+
+impl core::fmt::Display for Char {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let v = match self {
+            Char::Semicolon => ';',
+            Char::Colon => ':',
+            Char::Comma => ',',
+            Char::Dot => '.',
+            Char::At => '@',
+            Char::Plus => '+',
+            Char::Minus => '-',
+            Char::Asterisk => '*',
+            Char::Gt => '>',
+            Char::Lt => '<',
+            Char::Equals => '=',
+            Char::Question => '?',
+            Char::Ampersand => '&',
+            Char::Pipe => '|',
+            Char::Slash => '/',
+        };
+
+        f.write_char(v)
+    }
 }

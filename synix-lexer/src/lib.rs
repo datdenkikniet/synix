@@ -28,8 +28,40 @@ pub enum TokenTree {
 
 impl TokenTree {
     pub fn span(&self) -> Span {
-        let start = LineColumn { line: 0, column: 0 };
-        Span { start, end: start }
+        match self {
+            TokenTree::Group(group) => group.span(),
+            TokenTree::Ident(ident) => ident.span(),
+            TokenTree::Punct(punct) => punct.span(),
+            TokenTree::Literal(literal) => literal.span(),
+        }
+    }
+}
+
+impl Lex for TokenTree {
+    fn lex(input: &mut LexBuffer) -> Result<Self> {
+        // TODO: deal with multiline comments
+        if input.peek() == Some('#') {
+            while input.next() != Some('\n') {}
+            input.skip_ws();
+        }
+
+        let tree = if Group::starts(input) {
+            let group = input.lex()?;
+            TokenTree::Group(group)
+        } else if Literal::starts(input.peek()) {
+            let lit = input.lex()?;
+            TokenTree::Literal(lit)
+        } else if Ident::starts(input.peek()) {
+            let ident = input.lex()?;
+            TokenTree::Ident(ident)
+        } else if Punct::peek(input) {
+            let punct = input.lex()?;
+            TokenTree::Punct(punct)
+        } else {
+            return Err(Error::new(input.span(), "Unexpected input."));
+        };
+
+        Ok(tree)
     }
 }
 
@@ -64,21 +96,7 @@ impl Lex for TokenStream {
                 break;
             }
 
-            if Group::starts(input) {
-                let group = input.lex()?;
-                trees.push(TokenTree::Group(group));
-            } else if Literal::starts(input.peek()) {
-                let lit = input.lex()?;
-                trees.push(TokenTree::Literal(lit));
-            } else if Ident::starts(input.peek()) {
-                let ident = input.lex()?;
-                trees.push(TokenTree::Ident(ident));
-            } else if Punct::peek(input) {
-                let punct = input.lex()?;
-                trees.push(TokenTree::Punct(punct));
-            } else {
-                return Err(Error::new(input.span(), "Unexpected input."));
-            }
+            trees.push(input.lex()?);
         }
 
         Ok(Self::new(trees))

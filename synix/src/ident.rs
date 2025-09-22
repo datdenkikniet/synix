@@ -1,6 +1,6 @@
 use synix_lexer::{Span, TokenTree};
 
-use crate::{Error, Parse};
+use crate::{Error, Parse, Peek};
 
 #[derive(Debug)]
 pub struct Ident {
@@ -13,7 +13,7 @@ impl Ident {
     }
 
     pub fn span(&self) -> Span {
-        self.inner.span.clone()
+        self.inner.span()
     }
 }
 
@@ -28,5 +28,11 @@ impl Parse for Ident {
         } else {
             Err(Error::new(buffer.span(), "Expected ident"))
         }
+    }
+}
+
+impl Peek for Ident {
+    fn peek(input: &crate::ParseBuffer) -> bool {
+        Ident::parse(&mut input.fork()).is_ok()
     }
 }

@@ -13,7 +13,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 
     println!("Start: {start:?}, end: {end:?}");
 
-    let len = end.column - start.column + 1;
+    let len = (end.column - start.column).max(1);
     assert_eq!(start.line, end.line);
 
     let arrows: String = repeat_n(' ', start.column)
@@ -22,7 +22,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 
     let mut lines = str.lines();
 
-    for line in (&mut lines).take(start.line) {
+    for line in (&mut lines).take(start.line + 1) {
         println!("{line}");
     }
 
@@ -38,11 +38,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        let
-            x = 1;
-            y = "haha";
-        in
-            1
+        {a, b,}: a: let a = 
     "#;
 
     let expr = parse_pretty_print(nix);

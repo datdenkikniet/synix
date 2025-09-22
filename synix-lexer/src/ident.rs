@@ -2,11 +2,15 @@ use crate::{Error, Lex, LexBuffer, Span};
 
 #[derive(Debug, Clone)]
 pub struct Ident {
-    ident: String,
-    pub span: Span,
+    pub ident: String,
+    span: Span,
 }
 
 impl Ident {
+    pub fn span(&self) -> Span {
+        self.span.clone()
+    }
+
     pub fn ident(&self) -> &str {
         &self.ident
     }

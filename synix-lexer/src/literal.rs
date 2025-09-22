@@ -8,6 +8,14 @@ pub enum Literal {
 }
 
 impl Literal {
+    pub fn span(&self) -> Span {
+        match self {
+            Literal::Int(lit_int) => lit_int.span(),
+            Literal::Float(lit_float) => lit_float.span(),
+            Literal::Str(lit_str) => lit_str.span(),
+        }
+    }
+
     pub fn starts(char: Option<char>) -> bool {
         let char = if let Some(next) = char {
             next
@@ -51,7 +59,13 @@ macro_rules! literal {
             #[derive(Debug, Clone)]
             pub struct $name {
                 pub $value_name: $value,
-                pub span: Span,
+                span: Span,
+            }
+
+            impl $name {
+                pub fn span(&self) -> Span {
+                    self.span.clone()
+                }
             }
         )*
     };
