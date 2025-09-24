@@ -1,24 +1,28 @@
 use std::str::FromStr;
 
-mod error;
-mod r#let;
-
-pub mod ident;
-mod lambda;
+pub mod attrset;
+pub mod list;
 pub mod lit;
 pub mod token;
-pub use lambda::ExprLambda;
-pub use r#let::ExprLet;
+
+mod error;
+mod ident;
+mod lambda;
+mod r#let;
+mod parenthesized;
 
 pub use error::Error;
-use ident::Ident;
+pub use ident::Ident;
+pub use lambda::ExprLambda;
+pub use r#let::ExprLet;
+pub use parenthesized::ExprParenthesized;
 use synix_lexer::{
     Span, TokenStream, TokenTree,
     group::Delimiter,
     punct::{Char, Punct},
 };
 
-use crate::lit::ExprLit;
+use crate::{attrset::ExprAttrSet, list::ExprList, lit::ExprLit};
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[expect(non_snake_case)]
@@ -74,6 +78,9 @@ pub enum Expr {
     Lit(ExprLit),
     Lambda(ExprLambda),
     Ident(Ident),
+    AttrSet(ExprAttrSet),
+    Parenthesized(ExprParenthesized),
+    List(ExprList),
 }
 
 impl Expr {
@@ -83,6 +90,9 @@ impl Expr {
             Expr::Lit(expr_lit) => expr_lit.span(),
             Expr::Lambda(expr_lambda) => expr_lambda.span(),
             Expr::Ident(ident) => ident.span(),
+            Expr::AttrSet(attr_set) => attr_set.span(),
+            Expr::Parenthesized(paren) => paren.span(),
+            Expr::List(expr_list) => expr_list.span(),
         }
     }
 }
@@ -98,16 +108,21 @@ impl Parse for Expr {
         } else if ExprLambda::peek(input) {
             let lambda = input.parse()?;
             Self::Lambda(lambda)
+        } else if ExprAttrSet::peek(input) {
+            let attrset = input.parse()?;
+            Self::AttrSet(attrset)
+        } else if ExprParenthesized::peek(input) {
+            let parenthesized = input.parse()?;
+            Self::Parenthesized(parenthesized)
+        } else if ExprList::peek(input) {
+            let list = input.parse()?;
+            Self::List(list)
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
         } else {
             return Err(Error::new(input.span(), "Expected expr."));
         };
-
-        if input.len() != 0 {
-            return Err(Error::new(input.span(), "Leftover tokens."));
-        }
 
         Ok(output)
     }
@@ -154,6 +169,10 @@ impl<'a> ParseBuffer<'a> {
             false
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<'a> Iterator for ParseBuffer<'a> {
@@ -187,4 +206,43 @@ pub trait Parse: Sized {
 
 pub trait Peek {
     fn peek(input: &ParseBuffer) -> bool;
+}
+
+#[macro_export]
+macro_rules! delimited {
+    ($buffer:ident, $value:ident, $err:expr, $delim:ident) => {
+        match $buffer.next() {
+            Some(::synix_lexer::TokenTree::Group(group))
+                if group.delimiter == synix_lexer::group::Delimiter::$delim =>
+            {
+                $value = crate::ParseBuffer::new(group.inner.as_ref());
+                let _discard = $buffer;
+            }
+            v => {
+                let span = v.map(|v| v.span()).unwrap_or($buffer.span());
+                return Err(crate::Error::new(span, $err));
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! bracketed {
+    ($buffer:ident as $value:ident else $err:expr) => {
+        $crate::delimited!($buffer, $value, $err, Bracket)
+    };
+}
+
+#[macro_export]
+macro_rules! braced {
+    ($buffer:ident as $value:ident else $err:expr) => {
+        $crate::delimited!($buffer, $value, $err, Brace)
+    };
+}
+
+#[macro_export]
+macro_rules! parenthesized {
+    ($buffer:ident as $value:ident else $err:expr) => {
+        $crate::delimited!($buffer, $value, $err, Paren)
+    };
 }

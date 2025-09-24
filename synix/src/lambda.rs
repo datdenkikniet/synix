@@ -1,5 +1,3 @@
-use synix_lexer::group::Group;
-
 use crate::Peek;
 use crate::*;
 
@@ -36,7 +34,15 @@ impl Parse for ExprLambda {
 impl Peek for ExprLambda {
     fn peek(input: &ParseBuffer) -> bool {
         let input = &mut input.fork();
-        LambdaArg::parse(input).is_ok() && <Token![:]>::parse(input).is_ok()
+        let has_brace_group = {
+            let has_brace = input.peek(Brace);
+            let _ = input.next();
+            has_brace
+        };
+
+        let followed_by_colon = <Token![:]>::parse(input).is_ok();
+
+        has_brace_group && followed_by_colon
     }
 }
 
@@ -73,13 +79,13 @@ impl Parse for LambdaArg {
 
 #[derive(Debug)]
 pub struct ArgAttrSet {
-    group: Group,
+    span: Span,
     pub args: Vec<ArgAttrSetValue>,
 }
 
 impl ArgAttrSet {
     pub fn span(&self) -> Span {
-        self.group.span()
+        self.span.clone()
     }
 }
 
@@ -110,35 +116,29 @@ impl ArgAttrSetValue {
 }
 
 impl Parse for ArgAttrSet {
-    fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
+    fn parse(input: &mut ParseBuffer) -> Result<Self> {
         let mut args = Vec::new();
 
-        let group = match buffer.next() {
-            Some(TokenTree::Group(group)) if group.delimiter == Delimiter::Brace => group,
-            v => {
-                let span = v.map(|v| v.span()).unwrap_or(buffer.span());
-                let msg = format!("Expected attribute set argument.");
-                return Err(Error::new(span, msg));
-            }
-        };
+        let start = input.span();
 
-        let buffer = &mut ParseBuffer::new(group.inner.as_ref());
+        let mut group;
+        braced!(input as group else "Expected attribute set argument.");
 
-        while buffer.len() != 0 {
-            let ident = buffer.parse()?;
+        while !group.is_empty() {
+            let ident = group.parse()?;
 
-            let default = if <Token![?]>::peek(buffer) {
-                let question = buffer.parse()?;
-                let value = buffer.parse()?;
+            let default = if <Token![?]>::peek(&group) {
+                let question = group.parse()?;
+                let value = group.parse()?;
                 Some((question, value))
             } else {
                 None
             };
 
-            let comma = if buffer.len() != 0 {
-                Some(buffer.parse()?)
-            } else if buffer.peek(Comma) {
-                Some(buffer.parse()?)
+            let comma = if !group.is_empty() {
+                Some(group.parse()?)
+            } else if group.peek(Comma) {
+                Some(group.parse()?)
             } else {
                 None
             };
@@ -152,9 +152,8 @@ impl Parse for ArgAttrSet {
             args.push(arg);
         }
 
-        Ok(Self {
-            args,
-            group: group.clone(),
-        })
+        let span = start.join(&group.span());
+
+        Ok(Self { args, span })
     }
 }
