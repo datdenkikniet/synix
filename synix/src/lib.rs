@@ -84,16 +84,16 @@ pub const fn Ident(tree: &TokenTree) -> bool {
 
 #[derive(Debug)]
 pub enum Expr {
-    Let(ExprLet),
+    Let(Box<ExprLet>),
     Lit(ExprLit),
-    Lambda(ExprLambda),
+    Lambda(Box<ExprLambda>),
     Ident(Ident),
     AttrSet(ExprAttrSet),
-    Parenthesized(ExprParenthesized),
+    Parenthesized(Box<ExprParenthesized>),
     List(ExprList),
-    With(ExprWith),
-    FunctionCall(ExprFunctionCall),
-    Binary(ExprBinary),
+    With(Box<ExprWith>),
+    FunctionCall(Box<ExprFunctionCall>),
+    Binary(Box<ExprBinary>),
 }
 
 impl Expr {
@@ -122,22 +122,22 @@ impl Parse for Expr {
             Self::Lit(lit)
         } else if ExprLet::peek(input) {
             let let_ = input.parse()?;
-            Self::Let(let_)
+            Self::Let(Box::new(let_))
         } else if ExprLambda::peek(input) {
             let lambda = input.parse()?;
-            Self::Lambda(lambda)
+            Self::Lambda(Box::new(lambda))
         } else if ExprAttrSet::peek(input) {
             let attrset = input.parse()?;
             Self::AttrSet(attrset)
         } else if ExprParenthesized::peek(input) {
             let parenthesized = input.parse()?;
-            Self::Parenthesized(parenthesized)
+            Self::Parenthesized(Box::new(parenthesized))
         } else if ExprList::peek(input) {
             let list = input.parse()?;
             Self::List(list)
         } else if ExprWith::peek(input) {
             let with = input.parse()?;
-            Self::With(with)
+            Self::With(Box::new(with))
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
@@ -151,22 +151,23 @@ impl Parse for Expr {
             if Operator::peek(input) {
                 let operator = input.parse()?;
                 let binary = ExprBinary::parse_rest(output, operator, input)?;
-                Self::Binary(binary)
+                Self::Binary(Box::new(binary))
             } else {
                 let body = input.parse()?;
                 let span = start.join(&input.span());
 
                 // Reorder because function calls have higher
                 // precedence than binary expressions.
-                if let Expr::Binary(ExprBinary {
-                    lhs,
-                    operator,
-                    rhs,
-                    span: _,
-                }) = body
-                {
+                if let Expr::Binary(binary) = body {
+                    let ExprBinary {
+                        lhs,
+                        operator,
+                        rhs,
+                        span: _,
+                    } = *binary;
+
                     let function_call = ExprFunctionCall {
-                        head: Box::new(output),
+                        head: output,
                         tail: lhs,
                         // TODO: compute this
                         span: Default::default(),
@@ -174,15 +175,17 @@ impl Parse for Expr {
 
                     // TODO: compute this
                     let span = Default::default();
-                    let lhs = Self::FunctionCall(function_call);
+                    let lhs = Self::FunctionCall(Box::new(function_call));
 
-                    Self::Binary(ExprBinary::new(lhs, operator, *rhs, span))
+                    Self::Binary(Box::new(ExprBinary::new(lhs, operator, rhs, span)))
                 } else {
-                    Self::FunctionCall(ExprFunctionCall {
-                        head: Box::new(output),
-                        tail: Box::new(body),
+                    let function_call = ExprFunctionCall {
+                        head: output,
+                        tail: body,
                         span,
-                    })
+                    };
+
+                    Self::FunctionCall(Box::new(function_call))
                 }
             }
         };

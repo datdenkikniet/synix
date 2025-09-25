@@ -5,9 +5,9 @@ use crate::*;
 #[derive(Debug)]
 pub struct ExprWith {
     pub with: Token![with],
-    pub expr: Box<Expr>,
+    pub expr: Expr,
     pub semicolon: Token![;],
-    pub body: Box<Expr>,
+    pub body: Expr,
 }
 
 impl ExprWith {
@@ -31,10 +31,10 @@ impl Parse for ExprWith {
         let with = buffer.parse()?;
 
         let mut inner = buffer.until::<Token![;]>();
-        let expr = Box::new(inner.parse()?);
+        let expr = inner.parse()?;
 
         let semicolon = buffer.parse()?;
-        let body = Box::new(buffer.parse()?);
+        let body = buffer.parse()?;
 
         Ok(Self {
             with,

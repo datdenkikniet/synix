@@ -5,7 +5,7 @@ use crate::*;
 pub struct ExprLambda {
     pub arg: LambdaArg,
     pub colon: Token![:],
-    pub body: Box<Expr>,
+    pub body: Expr,
 }
 
 impl ExprLambda {
@@ -23,11 +23,7 @@ impl Parse for ExprLambda {
         let colon: Token![:] = buffer.parse()?;
         let body = buffer.parse()?;
 
-        Ok(ExprLambda {
-            arg,
-            colon,
-            body: Box::new(body),
-        })
+        Ok(ExprLambda { arg, colon, body })
     }
 }
 

@@ -4,7 +4,7 @@ use crate::{Expr, Paren, Parse, ParseBuffer, Peek, Result, parenthesized};
 
 #[derive(Debug)]
 pub struct ExprParenthesized {
-    pub inner: Box<Expr>,
+    pub inner: Expr,
     span: Span,
 }
 
@@ -12,15 +12,11 @@ impl ExprParenthesized {
     pub fn span(&self) -> Span {
         self.span.clone()
     }
-
-    pub fn into_inner(self) -> Expr {
-        *self.inner
-    }
 }
 
 impl From<ExprParenthesized> for Expr {
     fn from(value: ExprParenthesized) -> Self {
-        value.into_inner()
+        value.inner
     }
 }
 
@@ -36,7 +32,7 @@ impl Parse for ExprParenthesized {
         parenthesized!(buffer as paren else "Expected parenthesized expression.");
 
         let span = paren.span();
-        let inner = Box::new(paren.parse()?);
+        let inner = paren.parse()?;
 
         Ok(Self { inner, span })
     }

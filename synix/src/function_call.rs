@@ -4,8 +4,8 @@ use crate::Expr;
 
 #[derive(Debug)]
 pub struct ExprFunctionCall {
-    pub head: Box<Expr>,
-    pub tail: Box<Expr>,
+    pub head: Expr,
+    pub tail: Expr,
     pub(crate) span: Span,
 }
 

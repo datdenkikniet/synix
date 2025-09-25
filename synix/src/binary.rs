@@ -4,18 +4,18 @@ use crate::{Expr, Parse, ParseBuffer, Result, *};
 
 #[derive(Debug)]
 pub struct ExprBinary {
-    pub lhs: Box<Expr>,
+    pub lhs: Expr,
     pub operator: Operator,
-    pub rhs: Box<Expr>,
+    pub rhs: Expr,
     pub(crate) span: Span,
 }
 
 impl ExprBinary {
     pub(crate) fn new(lhs: Expr, operator: Operator, rhs: Expr, span: Span) -> Self {
         Self {
-            lhs: Box::new(lhs),
+            lhs,
             operator,
-            rhs: Box::new(rhs),
+            rhs,
             span,
         }
     }
@@ -30,11 +30,11 @@ impl ExprBinary {
         let out = if let Expr::Binary(rhs) = rhs {
             if operator.presedence(&rhs.operator) == Ordering::Greater {
                 // TODO: compute span
-                let lhs = ExprBinary::new(lhs, operator, *rhs.lhs, Default::default());
-                let lhs = Expr::Binary(lhs);
+                let lhs = ExprBinary::new(lhs, operator, rhs.lhs, Default::default());
+                let lhs = Expr::Binary(Box::new(lhs));
 
                 // TODO: compute span.
-                ExprBinary::new(lhs, rhs.operator, *rhs.rhs, Default::default())
+                ExprBinary::new(lhs, rhs.operator, rhs.rhs, Default::default())
             } else {
                 let rhs = Expr::Binary(rhs);
                 // TODO: compute span.

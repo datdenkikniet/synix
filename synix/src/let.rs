@@ -5,7 +5,7 @@ pub struct ExprLet {
     pub let_: Token![let],
     pub assignments: Vec<(Ident, Token![=], Expr, Token![;])>,
     pub in_: Token![in],
-    pub body: Box<Expr>,
+    pub body: Expr,
 }
 
 impl ExprLet {
@@ -48,7 +48,7 @@ impl Parse for ExprLet {
             let_,
             assignments,
             in_,
-            body: Box::new(body),
+            body,
         })
     }
 }
