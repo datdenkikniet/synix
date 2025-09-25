@@ -1,6 +1,6 @@
 use synix_lexer::{Span, TokenTree, punct::Char};
 
-use crate::{Error, ParseBuffer, Result};
+use crate::{Error, Parse, ParseBuffer, Peek, Result};
 
 fn punct_helper<const N: usize>(
     buffer: &mut ParseBuffer,
@@ -26,7 +26,10 @@ fn punct_helper<const N: usize>(
             return Err(Error::new(punct.span(), msg));
         }
 
-        if chars.len() != 0 && !punct.spacing.is_joint() {
+        if chars.len() == 0 && punct.spacing.is_joint() {
+            let msg = format!("Expected `{}`", repr);
+            return Err(Error::new(punct.span(), msg));
+        } else if chars.len() != 0 && !punct.spacing.is_joint() {
             let msg = format!("Expected `{}`", repr);
             return Err(Error::new(punct.span(), msg));
         }
@@ -109,9 +112,15 @@ impl Update {
     }
 }
 
-impl crate::Parse for Update {
+impl Parse for Update {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let span = punct_helper(buffer, "//", [Char::Slash, Char::Slash])?;
         Ok(Self { span })
+    }
+}
+
+impl Peek for Update {
+    fn peek(input: &ParseBuffer) -> bool {
+        Self::parse(&mut input.fork()).is_ok()
     }
 }

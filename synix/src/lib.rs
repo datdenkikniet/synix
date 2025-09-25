@@ -5,7 +5,9 @@ pub mod list;
 pub mod lit;
 pub mod token;
 
+pub mod binary;
 mod error;
+mod function_call;
 mod ident;
 mod lambda;
 mod r#let;
@@ -13,6 +15,7 @@ mod parenthesized;
 mod with;
 
 pub use error::Error;
+pub use function_call::ExprFunctionCall;
 pub use ident::Ident;
 pub use lambda::ExprLambda;
 pub use r#let::ExprLet;
@@ -24,7 +27,12 @@ use synix_lexer::{
 };
 pub use with::ExprWith;
 
-use crate::{attrset::ExprAttrSet, list::ExprList, lit::ExprLit};
+use crate::{
+    attrset::ExprAttrSet,
+    binary::{ExprBinary, Operator},
+    list::ExprList,
+    lit::ExprLit,
+};
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[expect(non_snake_case)]
@@ -84,6 +92,8 @@ pub enum Expr {
     Parenthesized(ExprParenthesized),
     List(ExprList),
     With(ExprWith),
+    FunctionCall(ExprFunctionCall),
+    Binary(ExprBinary),
 }
 
 impl Expr {
@@ -97,12 +107,16 @@ impl Expr {
             Expr::Parenthesized(paren) => paren.span(),
             Expr::List(expr_list) => expr_list.span(),
             Expr::With(expr_with) => expr_with.span(),
+            Expr::FunctionCall(expr_function_call) => expr_function_call.span(),
+            Expr::Binary(expr_binary) => expr_binary.span(),
         }
     }
 }
 
 impl Parse for Expr {
     fn parse(input: &mut ParseBuffer) -> Result<Self> {
+        let start = input.span();
+
         let output = if ExprLit::peek(input) {
             let lit = input.parse()?;
             Self::Lit(lit)
@@ -131,7 +145,32 @@ impl Parse for Expr {
             return Err(Error::new(input.span(), "Expected expr."));
         };
 
-        Ok(output)
+        if ParseBuffer::is_empty(input) {
+            Ok(output)
+        } else {
+            if Operator::peek(input) {
+                let operator = input.parse()?;
+
+                let rhs = input.parse()?;
+                let span = start.join(&input.span());
+
+                Ok(Self::Binary(ExprBinary {
+                    lhs: Box::new(output),
+                    operator,
+                    rhs: Box::new(rhs),
+                    span,
+                }))
+            } else {
+                let body = input.parse()?;
+                let span = start.join(&input.span());
+
+                Ok(Self::FunctionCall(ExprFunctionCall {
+                    head: Box::new(output),
+                    tail: Box::new(body),
+                    span,
+                }))
+            }
+        }
     }
 }
 
