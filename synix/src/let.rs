@@ -32,7 +32,10 @@ impl Parse for ExprLet {
         while !<Token![in]>::peek(buffer) {
             let ident = buffer.parse()?;
             let eq = buffer.parse()?;
-            let expr = buffer.parse()?;
+
+            let mut inner = buffer.until::<Token![;]>();
+            let expr = inner.parse()?;
+
             let semi = buffer.parse()?;
 
             assignments.push((ident, eq, expr, semi));

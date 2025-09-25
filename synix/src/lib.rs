@@ -10,6 +10,7 @@ mod ident;
 mod lambda;
 mod r#let;
 mod parenthesized;
+mod with;
 
 pub use error::Error;
 pub use ident::Ident;
@@ -21,6 +22,7 @@ use synix_lexer::{
     group::Delimiter,
     punct::{Char, Punct},
 };
+pub use with::ExprWith;
 
 use crate::{attrset::ExprAttrSet, list::ExprList, lit::ExprLit};
 pub type Result<T> = core::result::Result<T, Error>;
@@ -81,6 +83,7 @@ pub enum Expr {
     AttrSet(ExprAttrSet),
     Parenthesized(ExprParenthesized),
     List(ExprList),
+    With(ExprWith),
 }
 
 impl Expr {
@@ -93,6 +96,7 @@ impl Expr {
             Expr::AttrSet(attr_set) => attr_set.span(),
             Expr::Parenthesized(paren) => paren.span(),
             Expr::List(expr_list) => expr_list.span(),
+            Expr::With(expr_with) => expr_with.span(),
         }
     }
 }
@@ -117,6 +121,9 @@ impl Parse for Expr {
         } else if ExprList::peek(input) {
             let list = input.parse()?;
             Self::List(list)
+        } else if ExprWith::peek(input) {
+            let with = input.parse()?;
+            Self::With(with)
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
@@ -172,6 +179,22 @@ impl<'a> ParseBuffer<'a> {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    // TODO: make this less scan-y
+    pub fn until<'b, P: Peek>(&'b mut self) -> ParseBuffer<'b> {
+        let forked = self.fork();
+        let mut len = 0;
+
+        while !P::peek(self) {
+            len += 1;
+            self.next();
+        }
+
+        Self {
+            trees: &forked.trees[..len],
+            last_span: None,
+        }
     }
 }
 

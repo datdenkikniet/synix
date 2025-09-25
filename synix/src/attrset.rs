@@ -46,7 +46,8 @@ impl Parse for AttrSetEntry {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let name = buffer.parse()?;
         let eq = buffer.parse()?;
-        let value = buffer.parse()?;
+        let mut inner = buffer.until::<Token![;]>();
+        let value = inner.parse()?;
         let semicolon = buffer.parse()?;
 
         Ok(Self {

@@ -38,7 +38,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        [ a b c ]
+        { a = "3"; b = 4; }
     "#;
 
     let expr = parse_pretty_print(nix);

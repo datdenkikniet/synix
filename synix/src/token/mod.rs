@@ -32,6 +32,8 @@ macro_rules ! Token {
     (||) => { $crate::token::Or };
     (let) => { $crate::token::Let };
     (in) => { $crate::token::In };
+    (with) => { $crate::token::With };
+    (inherit) => { $crate::token::Inherit };
 }
 
 #[cfg(test)]
