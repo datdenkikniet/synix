@@ -150,21 +150,13 @@ impl Parse for Expr {
         } else {
             if Operator::peek(input) {
                 let operator = input.parse()?;
-
-                let rhs = input.parse()?;
-                let span = start.join(&input.span());
-
-                Self::Binary(ExprBinary {
-                    lhs: Box::new(output),
-                    operator,
-                    rhs: Box::new(rhs),
-                    span,
-                })
+                let binary = ExprBinary::parse_rest(output, operator, input)?;
+                Self::Binary(binary)
             } else {
                 let body = input.parse()?;
                 let span = start.join(&input.span());
 
-                // Reorder to give function calls higher
+                // Reorder because function calls have higher
                 // precedence than binary expressions.
                 if let Expr::Binary(ExprBinary {
                     lhs,
@@ -180,13 +172,11 @@ impl Parse for Expr {
                         span: Default::default(),
                     };
 
-                    Self::Binary(ExprBinary {
-                        lhs: Box::new(Self::FunctionCall(function_call)),
-                        operator,
-                        rhs,
-                        // TODO: compute this
-                        span: Default::default(),
-                    })
+                    // TODO: compute this
+                    let span = Default::default();
+                    let lhs = Self::FunctionCall(function_call);
+
+                    Self::Binary(ExprBinary::new(lhs, operator, *rhs, span))
                 } else {
                     Self::FunctionCall(ExprFunctionCall {
                         head: Box::new(output),
@@ -197,11 +187,7 @@ impl Parse for Expr {
             }
         };
 
-        if let Expr::Binary(binary) = result {
-            Ok(binary.fix_presedence())
-        } else {
-            Ok(result)
-        }
+        Ok(result)
     }
 }
 

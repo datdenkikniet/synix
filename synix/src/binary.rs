@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::{Expr, Parse, ParseBuffer, Result, *};
 
 #[derive(Debug)]
@@ -9,17 +11,45 @@ pub struct ExprBinary {
 }
 
 impl ExprBinary {
+    pub(crate) fn new(lhs: Expr, operator: Operator, rhs: Expr, span: Span) -> Self {
+        Self {
+            lhs: Box::new(lhs),
+            operator,
+            rhs: Box::new(rhs),
+            span,
+        }
+    }
+
     pub fn span(&self) -> Span {
         self.span.clone()
     }
 
-    pub fn fix_presedence(self) -> Expr {
-        // TODO: actually fix presedence :) This is probably difficult :P
-        Expr::Binary(self)
+    pub fn parse_rest(lhs: Expr, operator: Operator, rest: &mut ParseBuffer) -> Result<Self> {
+        let rhs: Expr = rest.parse()?;
+
+        let out = if let Expr::Binary(rhs) = rhs {
+            if operator.presedence(&rhs.operator) == Ordering::Greater {
+                // TODO: compute span
+                let lhs = ExprBinary::new(lhs, operator, *rhs.lhs, Default::default());
+                let lhs = Expr::Binary(lhs);
+
+                // TODO: compute span.
+                ExprBinary::new(lhs, rhs.operator, *rhs.rhs, Default::default())
+            } else {
+                let rhs = Expr::Binary(rhs);
+                // TODO: compute span.
+                ExprBinary::new(lhs, operator, rhs, Default::default())
+            }
+        } else {
+            // TODO: compute span.
+            ExprBinary::new(lhs, operator, rhs, Default::default())
+        };
+
+        Ok(out)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Operator {
     Add,
     Subtract,
@@ -35,6 +65,35 @@ pub enum Operator {
     Lt,
     Le,
     Concat,
+}
+
+impl Operator {
+    fn presedence_val(&self) -> usize {
+        match self {
+            // Mathematical operators
+            Operator::Multiply => 4,
+            Operator::Divide => 4,
+            Operator::Add => 3,
+            Operator::Subtract => 3,
+            // Equality operators
+            Operator::Equals => 2,
+            Operator::NotEquals => 2,
+            Operator::Gt => 2,
+            Operator::Ge => 2,
+            Operator::Lt => 2,
+            Operator::Le => 2,
+            // Binary operators
+            Operator::And => 1,
+            Operator::Or => 1,
+            // List & attribute set operators
+            Operator::Update => 0,
+            Operator::Concat => 0,
+        }
+    }
+
+    pub fn presedence(&self, other: &Self) -> Ordering {
+        self.presedence_val().cmp(&other.presedence_val())
+    }
 }
 
 impl Parse for Operator {
