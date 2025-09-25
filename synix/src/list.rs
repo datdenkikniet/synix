@@ -2,7 +2,7 @@ use synix_lexer::Span;
 
 use crate::{
     Brace, Bracket, Error, ExprParenthesized, Ident, Paren, Parse, ParseBuffer, Peek, Result,
-    attrset::ExprAttrSet, bracketed,
+    attrset::ExprAttrSet, bracketed, lit::ExprLit,
 };
 
 #[derive(Debug)]
@@ -40,6 +40,8 @@ impl Parse for ExprList {
                 ListEntry::List(bracketed.parse()?)
             } else if bracketed.peek(Brace) {
                 ListEntry::AttrSet(bracketed.parse()?)
+            } else if ExprLit::peek(&bracketed) {
+                ListEntry::Lit(bracketed.parse()?)
             } else {
                 let msg = "Expected list entry.";
                 return Err(Error::new(bracketed.span(), msg));
@@ -58,4 +60,5 @@ pub enum ListEntry {
     Parenthesized(ExprParenthesized),
     List(ExprList),
     AttrSet(ExprAttrSet),
+    Lit(ExprLit),
 }

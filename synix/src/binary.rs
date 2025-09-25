@@ -12,6 +12,11 @@ impl ExprBinary {
     pub fn span(&self) -> Span {
         self.span.clone()
     }
+
+    pub fn fix_presedence(self) -> Expr {
+        // TODO: actually fix presedence :) This is probably difficult :P
+        Expr::Binary(self)
+    }
 }
 
 #[derive(Debug)]
@@ -24,10 +29,12 @@ pub enum Operator {
     And,
     Or,
     Equals,
+    NotEquals,
     Gt,
     Ge,
     Lt,
     Le,
+    Concat,
 }
 
 impl Parse for Operator {
@@ -56,6 +63,8 @@ impl Parse for Operator {
             Token![>=] => Ge,
             Token![<] => Lt,
             Token![<=] => Le,
+            crate::token::Concat => Concat,
+            Token![!=] => NotEquals,
         }
 
         Err(Error::new(buffer.span(), "Expected binary operator."))

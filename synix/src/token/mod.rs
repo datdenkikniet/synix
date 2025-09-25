@@ -28,8 +28,10 @@ macro_rules ! Token {
     (>=) => { $crate::token::Ge };
     (<=) => { $crate::token::Le };
     (==) => { $crate::token::EqualsEquals };
+    (!=) => { $crate::token::NotEquals };
     (&&) => { $crate::token::And };
     (||) => { $crate::token::Or };
+    (++) => { $crate::token::Concat };
     (let) => { $crate::token::Let };
     (in) => { $crate::token::In };
     (with) => { $crate::token::With };
@@ -62,6 +64,8 @@ mod test {
     const EQ_EQ: Token![==] = <Token![==]>::new();
     const AND: Token![&&] = <Token![&&]>::new();
     const OR: Token![||] = <Token![||]>::new();
+    const CONCAT: Token![++] = <Token![++]>::new();
+    const NOT_EQUALS: Token![!=] = <Token![!=]>::new();
     const UPDATE: Update = Update::new();
     const BRACE: Brace = Brace;
     const PAREN: Paren = Paren;

@@ -55,6 +55,7 @@ impl Lex for Punct {
             '&' => Ampersand
             '|' => Pipe
             '/' => Slash
+            '!' => Exclamation
         );
         let span = buffer.span_from(start);
 
@@ -94,6 +95,7 @@ pub enum Char {
     Lt,
     Equals,
     Question,
+    Exclamation,
     Ampersand,
     Pipe,
     Slash,
@@ -117,6 +119,7 @@ impl core::fmt::Display for Char {
             Char::Ampersand => '&',
             Char::Pipe => '|',
             Char::Slash => '/',
+            Char::Exclamation => '!',
         };
 
         f.write_char(v)

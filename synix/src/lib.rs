@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
 pub mod attrset;
+pub mod binary;
 pub mod list;
 pub mod lit;
 pub mod token;
 
-pub mod binary;
 mod error;
 mod function_call;
 mod ident;
@@ -145,8 +145,8 @@ impl Parse for Expr {
             return Err(Error::new(input.span(), "Expected expr."));
         };
 
-        if ParseBuffer::is_empty(input) {
-            Ok(output)
+        let result = if ParseBuffer::is_empty(input) {
+            output
         } else {
             if Operator::peek(input) {
                 let operator = input.parse()?;
@@ -154,22 +154,53 @@ impl Parse for Expr {
                 let rhs = input.parse()?;
                 let span = start.join(&input.span());
 
-                Ok(Self::Binary(ExprBinary {
+                Self::Binary(ExprBinary {
                     lhs: Box::new(output),
                     operator,
                     rhs: Box::new(rhs),
                     span,
-                }))
+                })
             } else {
                 let body = input.parse()?;
                 let span = start.join(&input.span());
 
-                Ok(Self::FunctionCall(ExprFunctionCall {
-                    head: Box::new(output),
-                    tail: Box::new(body),
-                    span,
-                }))
+                // Reorder to give function calls higher
+                // precedence than binary expressions.
+                if let Expr::Binary(ExprBinary {
+                    lhs,
+                    operator,
+                    rhs,
+                    span: _,
+                }) = body
+                {
+                    let function_call = ExprFunctionCall {
+                        head: Box::new(output),
+                        tail: lhs,
+                        // TODO: compute this
+                        span: Default::default(),
+                    };
+
+                    Self::Binary(ExprBinary {
+                        lhs: Box::new(Self::FunctionCall(function_call)),
+                        operator,
+                        rhs,
+                        // TODO: compute this
+                        span: Default::default(),
+                    })
+                } else {
+                    Self::FunctionCall(ExprFunctionCall {
+                        head: Box::new(output),
+                        tail: Box::new(body),
+                        span,
+                    })
+                }
             }
+        };
+
+        if let Expr::Binary(binary) = result {
+            Ok(binary.fix_presedence())
+        } else {
+            Ok(result)
         }
     }
 }
