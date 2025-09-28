@@ -1,10 +1,9 @@
-use crate::ident::LiteralOrInterpolatedIdent;
 use crate::*;
 use crate::{Brace, Expr, Ident, Parse, Peek, braced};
 
 #[derive(Debug)]
 pub struct ExprAttrSet {
-    pub entries: Vec<AttrSetEntry>,
+    pub entries: Vec<Assignment>,
     span: Span,
 }
 
@@ -32,31 +31,6 @@ impl Parse for ExprAttrSet {
 impl Peek for ExprAttrSet {
     fn peek(input: &crate::ParseBuffer) -> bool {
         input.peek(Brace)
-    }
-}
-
-#[derive(Debug)]
-pub struct AttrSetEntry {
-    pub name: LiteralOrInterpolatedIdent,
-    pub eq: Token![=],
-    pub value: Expr,
-    pub semicolon: Token![;],
-}
-
-impl Parse for AttrSetEntry {
-    fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
-        let name = buffer.parse()?;
-        let eq = buffer.parse()?;
-        let mut inner = buffer.until::<Token![;]>();
-        let value = inner.parse()?;
-        let semicolon = buffer.parse()?;
-
-        Ok(Self {
-            name,
-            eq,
-            value,
-            semicolon,
-        })
     }
 }
 

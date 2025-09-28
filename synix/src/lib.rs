@@ -7,6 +7,7 @@ pub mod lit;
 pub mod path;
 pub mod token;
 
+mod assignment;
 mod error;
 mod function_call;
 mod ident;
@@ -15,6 +16,7 @@ mod r#let;
 mod parenthesized;
 mod with;
 
+pub use assignment::{Assignment, AssignmentInherit, AssignmentNamed};
 pub use error::Error;
 pub use function_call::ExprFunctionCall;
 pub use ident::{Ident, InterpolatedIdent};
@@ -342,7 +344,6 @@ macro_rules! delimited {
                 if group.delimiter == synix_lexer::group::Delimiter::$delim =>
             {
                 $value = crate::ParseBuffer::new(group.inner.as_ref());
-                let _discard = $buffer;
             }
             v => {
                 let span = v.map(|v| v.span()).unwrap_or($buffer.span());

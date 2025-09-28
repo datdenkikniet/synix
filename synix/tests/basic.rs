@@ -39,7 +39,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        { a = haha/${ "hello" }; }
+        { inherit (muhahah) x y; }
     "#;
 
     let expr = parse_pretty_print(nix);

@@ -1,24 +1,21 @@
-use crate::{ident::LiteralOrInterpolatedIdent, *};
+use crate::*;
 
 #[derive(Debug)]
 pub struct ExprLet {
     pub let_: Token![let],
-    pub assignments: Vec<(Ident, Token![=], Expr, Token![;])>,
+    pub assignments: Vec<Assignment>,
     pub in_: Token![in],
     pub body: Expr,
 }
 
 impl ExprLet {
     pub fn span(&self) -> Span {
-        let assignments = self.assignments.iter().fold(
-            self.let_.span.clone(),
-            |let_, (ident, eq, expr, semi)| {
-                let_.join(&ident.span())
-                    .join(&eq.span)
-                    .join(&expr.span())
-                    .join(&semi.span)
-            },
-        );
+        let assignments = self
+            .assignments
+            .iter()
+            .fold(self.let_.span.clone(), |let_, assignment| {
+                let_.join(&assignment.span())
+            });
 
         assignments.join(&self.in_.span).join(&self.body.span())
     }
@@ -30,23 +27,8 @@ impl Parse for ExprLet {
 
         let mut assignments = Vec::new();
         while !<Token![in]>::peek(buffer) {
-            let ident = match LiteralOrInterpolatedIdent::parse(buffer)? {
-                LiteralOrInterpolatedIdent::Literal(ident) => ident,
-                LiteralOrInterpolatedIdent::Interpolated(interpolated_ident) => {
-                    return Err(Error::new(
-                        interpolated_ident.span(),
-                        "Interpolated idents are not allowed in `let`",
-                    ));
-                }
-            };
-            let eq = buffer.parse()?;
-
-            let mut inner = buffer.until::<Token![;]>();
-            let expr = inner.parse()?;
-
-            let semi = buffer.parse()?;
-
-            assignments.push((ident, eq, expr, semi));
+            let assignment = buffer.parse()?;
+            assignments.push(assignment);
         }
 
         let in_ = buffer.parse()?;
