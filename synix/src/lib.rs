@@ -17,13 +17,14 @@ mod with;
 
 pub use error::Error;
 pub use function_call::ExprFunctionCall;
-pub use ident::Ident;
+pub use ident::{Ident, InterpolatedIdent};
 pub use lambda::ExprLambda;
 pub use r#let::ExprLet;
 pub use parenthesized::ExprParenthesized;
 use synix_lexer::{
     Span, TokenStream, TokenTree,
     group::Delimiter,
+    literal::Literal,
     punct::{Char, Punct},
 };
 pub use with::ExprWith;
@@ -33,12 +34,32 @@ use crate::{
     binary::{ExprBinary, Operator},
     list::ExprList,
     lit::ExprLit,
-    path::LookupPath,
+    path::Path,
 };
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[expect(non_snake_case)]
-pub fn Comma(tree: &TokenTree) -> bool {
+pub fn LitInt(tree: &TokenTree) -> bool {
+    matches!(tree, TokenTree::Literal(Literal::Int(_)))
+}
+
+#[expect(non_snake_case)]
+pub fn LitFloat(tree: &TokenTree) -> bool {
+    matches!(tree, TokenTree::Literal(Literal::Float(_)))
+}
+
+#[expect(non_snake_case)]
+pub fn LitStr(tree: &TokenTree) -> bool {
+    matches!(tree, TokenTree::Literal(Literal::Str(_)))
+}
+
+#[expect(non_snake_case)]
+pub fn Slash(tree: &TokenTree) -> bool {
+    punct_peek_helper(tree, Char::Slash)
+}
+
+#[expect(non_snake_case)]
+pub const fn Comma(tree: &TokenTree) -> bool {
     punct_peek_helper(tree, Char::Comma)
 }
 
@@ -65,9 +86,9 @@ fn group_peek_helper(tree: &TokenTree, check: Delimiter) -> bool {
     }
 }
 
-fn punct_peek_helper(tree: &TokenTree, char: Char) -> bool {
+const fn punct_peek_helper(tree: &TokenTree, char: Char) -> bool {
     if let TokenTree::Punct(Punct { ch, .. }) = tree {
-        ch == &char
+        ch.eq(&char)
     } else {
         false
     }
@@ -97,7 +118,7 @@ pub enum Expr {
     FunctionCall(Box<ExprFunctionCall>),
     Binary(Box<ExprBinary>),
     AttributeAccess(Box<AttributeAccess>),
-    LookupPath(LookupPath),
+    Path(Path),
 }
 
 impl Expr {
@@ -114,7 +135,7 @@ impl Expr {
             Expr::FunctionCall(expr_function_call) => expr_function_call.span(),
             Expr::Binary(expr_binary) => expr_binary.span(),
             Expr::AttributeAccess(attribute_access) => attribute_access.span(),
-            Expr::LookupPath(expr_lookup_path) => expr_lookup_path.span(),
+            Expr::Path(path) => path.span(),
         }
     }
 }
@@ -144,9 +165,9 @@ impl Parse for Expr {
         } else if ExprWith::peek(input) {
             let with = input.parse()?;
             Self::With(Box::new(with))
-        } else if LookupPath::peek(input) {
+        } else if Path::peek(input) {
             let path = input.parse()?;
-            Self::LookupPath(path)
+            Self::Path(path)
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
@@ -239,16 +260,24 @@ impl<'a> ParseBuffer<'a> {
         self.clone()
     }
 
-    pub(crate) fn peek_tree(&self) -> Option<&'a TokenTree> {
-        self.trees.get(0)
+    pub(crate) fn peek_tree_n(&self, n: usize) -> Option<&'a TokenTree> {
+        self.trees.get(n)
     }
 
-    pub fn peek(&self, f: fn(&'a TokenTree) -> bool) -> bool {
-        if let Some(tree) = self.peek_tree() {
+    pub fn peek_n(&self, n: usize, f: fn(&'a TokenTree) -> bool) -> bool {
+        if let Some(tree) = self.peek_tree_n(n) {
             f(tree)
         } else {
             false
         }
+    }
+
+    pub fn peek(&self, f: fn(&'a TokenTree) -> bool) -> bool {
+        self.peek_n(0, f)
+    }
+
+    pub(crate) fn peek_tree(&self) -> Option<&'a TokenTree> {
+        self.peek_tree_n(0)
     }
 
     pub fn is_empty(&self) -> bool {

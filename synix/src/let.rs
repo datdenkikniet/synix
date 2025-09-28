@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{ident::LiteralOrInterpolatedIdent, *};
 
 #[derive(Debug)]
 pub struct ExprLet {
@@ -30,7 +30,15 @@ impl Parse for ExprLet {
 
         let mut assignments = Vec::new();
         while !<Token![in]>::peek(buffer) {
-            let ident = buffer.parse()?;
+            let ident = match LiteralOrInterpolatedIdent::parse(buffer)? {
+                LiteralOrInterpolatedIdent::Literal(ident) => ident,
+                LiteralOrInterpolatedIdent::Interpolated(interpolated_ident) => {
+                    return Err(Error::new(
+                        interpolated_ident.span(),
+                        "Interpolated idents are not allowed in `let`",
+                    ));
+                }
+            };
             let eq = buffer.parse()?;
 
             let mut inner = buffer.until::<Token![;]>();

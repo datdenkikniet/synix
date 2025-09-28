@@ -1,6 +1,7 @@
-use std::iter::repeat_n;
+use std::{iter::repeat_n, str::FromStr};
 
-use synix::Expr;
+use synix::{Expr, ParseBuffer, path::Path};
+use synix_lexer::TokenStream;
 
 fn parse_pretty_print(str: &str) -> Expr {
     let err = match synix::parse(str) {
@@ -38,7 +39,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        1 * 2 + 3 + 4 * 5 / 5
+        { a = haha/${ "hello" }; }
     "#;
 
     let expr = parse_pretty_print(nix);

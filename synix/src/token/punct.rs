@@ -28,7 +28,8 @@ fn punct_helper<const N: usize>(
 
         let next_is_punct = buffer
             .peek_tree()
-            .map(|v| matches!(v, TokenTree::Punct(_)))
+            // TODO: fix ugly exception for path interpolation :(
+            .map(|v| matches!(v, TokenTree::Punct(p) if p.ch != Char::Dollar))
             .unwrap_or(false);
 
         if next_is_punct {
@@ -106,4 +107,7 @@ punct_tokens! {
     Update = [/ /] as [Slash, Slash]
     Concat = [+ +] as [Plus, Plus]
     NotEquals = [!=] as [Exclamation, Equals]
+    Dollar = [$] as [Dollar]
+    DotSlash = [./] as [Dot, Slash]
+    TildeSlash = [~/] as [Tilde, Slash]
 }

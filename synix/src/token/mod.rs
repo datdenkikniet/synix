@@ -24,6 +24,7 @@ macro_rules ! Token {
     (&) => { $crate::token::Ampersand };
     (|) => { $crate::token::Pipe };
     (/) => { $crate::token::Slash };
+    ($) => { $crate::token::Dollar };
     (...) => { $crate::token::Ellipsis };
     (>=) => { $crate::token::Ge };
     (<=) => { $crate::token::Le };
@@ -32,6 +33,8 @@ macro_rules ! Token {
     (&&) => { $crate::token::And };
     (||) => { $crate::token::Or };
     (++) => { $crate::token::Concat };
+    (./) => { $crate::token::DotSlash };
+    (~/) => { $crate::token::TildeSlash };
     (let) => { $crate::token::Let };
     (in) => { $crate::token::In };
     (with) => { $crate::token::With };
@@ -66,6 +69,9 @@ mod test {
     const OR: Token![||] = <Token![||]>::new();
     const CONCAT: Token![++] = <Token![++]>::new();
     const NOT_EQUALS: Token![!=] = <Token![!=]>::new();
+    const DOLLAR: Token![$] = <Token![$]>::new();
+    const DOTSLASH: Token![./] = <Token![./]>::new();
+    const TILDESLASH: Token![~/] = <Token![~/]>::new();
     const UPDATE: Update = Update::new();
     const BRACE: Brace = Brace;
     const PAREN: Paren = Paren;

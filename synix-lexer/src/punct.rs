@@ -56,6 +56,8 @@ impl Lex for Punct {
             '|' => Pipe
             '/' => Slash
             '!' => Exclamation
+            '$' => Dollar
+            '~' => Tilde
         );
         let span = buffer.span_from(start);
 
@@ -82,6 +84,7 @@ impl Spacing {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(u8)]
 pub enum Char {
     Semicolon,
     Colon,
@@ -99,6 +102,14 @@ pub enum Char {
     Ampersand,
     Pipe,
     Slash,
+    Dollar,
+    Tilde,
+}
+
+impl Char {
+    pub const fn eq(&self, other: &Self) -> bool {
+        *self as u8 == *other as u8
+    }
 }
 
 impl core::fmt::Display for Char {
@@ -120,6 +131,8 @@ impl core::fmt::Display for Char {
             Char::Pipe => '|',
             Char::Slash => '/',
             Char::Exclamation => '!',
+            Char::Dollar => '$',
+            Char::Tilde => '~',
         };
 
         f.write_char(v)

@@ -1,3 +1,4 @@
+use crate::ident::LiteralOrInterpolatedIdent;
 use crate::*;
 use crate::{Brace, Expr, Ident, Parse, Peek, braced};
 
@@ -36,7 +37,7 @@ impl Peek for ExprAttrSet {
 
 #[derive(Debug)]
 pub struct AttrSetEntry {
-    pub name: Ident,
+    pub name: LiteralOrInterpolatedIdent,
     pub eq: Token![=],
     pub value: Expr,
     pub semicolon: Token![;],
