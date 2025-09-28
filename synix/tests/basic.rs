@@ -1,7 +1,6 @@
-use std::{iter::repeat_n, str::FromStr};
+use std::iter::repeat_n;
 
-use synix::{Expr, ParseBuffer, path::Path};
-use synix_lexer::TokenStream;
+use synix::Expr;
 
 fn parse_pretty_print(str: &str) -> Expr {
     let err = match synix::parse(str) {
@@ -39,7 +38,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        { inherit (muhahah) x y; a = 3; a.b.c = 3; }
+        { a = { b = 3; }; }
     "#;
 
     let expr = parse_pretty_print(nix);

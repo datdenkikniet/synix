@@ -291,7 +291,7 @@ impl<'a> ParseBuffer<'a> {
         let forked = self.fork();
         let mut len = 0;
 
-        while !P::peek(self) {
+        while !Self::is_empty(self) && !P::peek(self) {
             len += 1;
             self.next();
         }
