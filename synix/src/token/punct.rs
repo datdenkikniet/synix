@@ -26,12 +26,19 @@ fn punct_helper<const N: usize>(
             return Err(Error::new(punct.span(), msg));
         }
 
-        if chars.len() == 0 && punct.spacing.is_joint() {
-            let msg = format!("Expected `{}`", repr);
-            return Err(Error::new(punct.span(), msg));
-        } else if chars.len() != 0 && !punct.spacing.is_joint() {
-            let msg = format!("Expected `{}`", repr);
-            return Err(Error::new(punct.span(), msg));
+        let next_is_punct = buffer
+            .peek_tree()
+            .map(|v| matches!(v, TokenTree::Punct(_)))
+            .unwrap_or(false);
+
+        if next_is_punct {
+            if chars.len() == 0 && punct.spacing.is_joint() {
+                let msg = format!("Expected `{}`", repr);
+                return Err(Error::new(punct.span(), msg));
+            } else if chars.len() != 0 && !punct.spacing.is_joint() {
+                let msg = format!("Expected `{}`", repr);
+                return Err(Error::new(punct.span(), msg));
+            }
         }
     }
 

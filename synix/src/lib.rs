@@ -28,7 +28,7 @@ use synix_lexer::{
 pub use with::ExprWith;
 
 use crate::{
-    attrset::ExprAttrSet,
+    attrset::{AttributeAccess, ExprAttrSet},
     binary::{ExprBinary, Operator},
     list::ExprList,
     lit::ExprLit,
@@ -94,6 +94,7 @@ pub enum Expr {
     With(Box<ExprWith>),
     FunctionCall(Box<ExprFunctionCall>),
     Binary(Box<ExprBinary>),
+    AttributeAccess(Box<AttributeAccess>),
 }
 
 impl Expr {
@@ -109,6 +110,7 @@ impl Expr {
             Expr::With(expr_with) => expr_with.span(),
             Expr::FunctionCall(expr_function_call) => expr_function_call.span(),
             Expr::Binary(expr_binary) => expr_binary.span(),
+            Expr::AttributeAccess(attribute_access) => attribute_access.span(),
         }
     }
 }
@@ -117,7 +119,7 @@ impl Parse for Expr {
     fn parse(input: &mut ParseBuffer) -> Result<Self> {
         let start = input.span();
 
-        let output = if ExprLit::peek(input) {
+        let mut output = if ExprLit::peek(input) {
             let lit = input.parse()?;
             Self::Lit(lit)
         } else if ExprLet::peek(input) {
@@ -143,6 +145,12 @@ impl Parse for Expr {
             Self::Ident(ident)
         } else {
             return Err(Error::new(input.span(), "Expected expr."));
+        };
+
+        output = if AttributeAccess::peek(input) {
+            Self::AttributeAccess(Box::new(AttributeAccess::parse_rest(output, input)?))
+        } else {
+            output
         };
 
         let result = if ParseBuffer::is_empty(input) {
