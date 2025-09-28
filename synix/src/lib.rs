@@ -4,6 +4,7 @@ pub mod attrset;
 pub mod binary;
 pub mod list;
 pub mod lit;
+pub mod path;
 pub mod token;
 
 mod error;
@@ -32,6 +33,7 @@ use crate::{
     binary::{ExprBinary, Operator},
     list::ExprList,
     lit::ExprLit,
+    path::LookupPath,
 };
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -95,6 +97,7 @@ pub enum Expr {
     FunctionCall(Box<ExprFunctionCall>),
     Binary(Box<ExprBinary>),
     AttributeAccess(Box<AttributeAccess>),
+    LookupPath(LookupPath),
 }
 
 impl Expr {
@@ -111,6 +114,7 @@ impl Expr {
             Expr::FunctionCall(expr_function_call) => expr_function_call.span(),
             Expr::Binary(expr_binary) => expr_binary.span(),
             Expr::AttributeAccess(attribute_access) => attribute_access.span(),
+            Expr::LookupPath(expr_lookup_path) => expr_lookup_path.span(),
         }
     }
 }
@@ -140,6 +144,9 @@ impl Parse for Expr {
         } else if ExprWith::peek(input) {
             let with = input.parse()?;
             Self::With(Box::new(with))
+        } else if LookupPath::peek(input) {
+            let path = input.parse()?;
+            Self::LookupPath(path)
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
