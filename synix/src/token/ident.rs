@@ -55,4 +55,5 @@ keyword! {
     In = "in"
     Inherit = "inherit"
     With = "with"
+    Rec = "rec"
 }

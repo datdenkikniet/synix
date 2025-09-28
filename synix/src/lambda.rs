@@ -29,6 +29,8 @@ impl Parse for ExprLambda {
 
 impl Peek for ExprLambda {
     fn peek(input: &ParseBuffer) -> bool {
+        let is_ident = Ident::peek(input);
+
         let input = &mut input.fork();
         let has_brace_group = {
             let has_brace = input.peek(Brace);
@@ -38,7 +40,7 @@ impl Peek for ExprLambda {
 
         let followed_by_colon = <Token![:]>::parse(input).is_ok();
 
-        has_brace_group && followed_by_colon
+        (is_ident || has_brace_group) && followed_by_colon
     }
 }
 
@@ -77,6 +79,7 @@ impl Parse for LambdaArg {
 pub struct ArgAttrSet {
     span: Span,
     pub args: Vec<ArgAttrSetValue>,
+    pub ellipsis: Option<Token![...]>,
 }
 
 impl ArgAttrSet {
@@ -120,7 +123,22 @@ impl Parse for ArgAttrSet {
         let mut group;
         braced!(input as group else "Expected attribute set argument.");
 
+        let mut ellipsis = None;
         while !group.is_empty() {
+            if <Token![...]>::peek(&group) {
+                ellipsis = Some(group.parse()?);
+
+                if <Token![,]>::peek(&group) {
+                    <Token![,]>::parse(&mut group)?;
+                }
+
+                if !group.is_empty() {
+                    return Err(Error::new(group.span(), "Expected end of argument."));
+                }
+
+                break;
+            }
+
             let ident = group.parse()?;
 
             let default = if <Token![?]>::peek(&group) {
@@ -150,6 +168,10 @@ impl Parse for ArgAttrSet {
 
         let span = start.join(&group.span());
 
-        Ok(Self { args, span })
+        Ok(Self {
+            args,
+            ellipsis,
+            span,
+        })
     }
 }

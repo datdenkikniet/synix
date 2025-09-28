@@ -35,7 +35,7 @@ impl Parse for LiteralOrInterpolatedIdent {
         } else {
             Err(Error::new(
                 buffer.span(),
-                "Expected literal or interpolated ident.",
+                "Expected literal or interpolated ident",
             ))
         }
     }

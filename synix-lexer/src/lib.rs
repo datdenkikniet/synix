@@ -39,12 +39,6 @@ impl TokenTree {
 
 impl Lex for TokenTree {
     fn lex(input: &mut LexBuffer) -> Result<Self> {
-        // TODO: deal with multiline comments
-        if input.peek() == Some('#') {
-            while input.next() != Some('\n') {}
-            input.skip_ws();
-        }
-
         let tree = if Group::starts(input) {
             let group = input.lex()?;
             TokenTree::Group(group)
@@ -90,7 +84,7 @@ impl Lex for TokenStream {
         let mut trees = Vec::new();
 
         loop {
-            input.skip_ws();
+            input.skip_ws_and_comments();
 
             if input.is_empty() {
                 break;

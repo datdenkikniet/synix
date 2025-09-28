@@ -35,7 +35,7 @@ impl Lex for Group {
             None => return Err(Error::new(if_error, "Unexpected end of input.")),
         };
 
-        buffer.skip_ws();
+        buffer.skip_ws_and_comments();
         let next = buffer.peek();
 
         let inner = if next != Some(closing) {
@@ -44,7 +44,7 @@ impl Lex for Group {
                 let next_tree = buffer.lex()?;
                 trees.push(next_tree);
 
-                buffer.skip_ws();
+                buffer.skip_ws_and_comments();
 
                 if buffer.peek() == Some(closing) {
                     break;

@@ -16,7 +16,7 @@ impl Ident {
     }
 
     fn allowed(c: char) -> bool {
-        c.is_alphanumeric() || c == '_' || c == '\''
+        c.is_alphanumeric() || c == '_' || c == '\'' || c == '-'
     }
 
     pub fn starts(char: Option<char>) -> bool {

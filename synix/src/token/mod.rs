@@ -39,6 +39,7 @@ macro_rules ! Token {
     (in) => { $crate::token::In };
     (with) => { $crate::token::With };
     (inherit) => { $crate::token::Inherit };
+    (rec) => { $crate::token::Rec };
 }
 
 #[cfg(test)]

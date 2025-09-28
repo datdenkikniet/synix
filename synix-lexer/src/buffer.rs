@@ -51,14 +51,29 @@ impl<'a> LexBuffer<'a> {
         self.inner.peek().copied()
     }
 
-    pub fn skip_ws(&mut self) -> bool {
+    pub fn skip_ws_and_comments(&mut self) -> bool {
         let mut fork = self.fork();
 
         let mut any = false;
 
-        while fork.next().is_some_and(|v| v.is_whitespace()) {
-            self.next();
-            any = true;
+        loop {
+            let next = fork.next();
+
+            if next.is_some_and(|n| n.is_whitespace()) {
+                self.next();
+                any = true;
+            }
+            // TODO: deal with comments
+            else if next.is_some_and(|n| n == '#') {
+                self.next();
+
+                while fork.next() != Some('\n') {
+                    self.next();
+                }
+                any = true;
+            } else {
+                break;
+            }
         }
 
         any

@@ -1,9 +1,6 @@
 use synix_lexer::Span;
 
-use crate::{
-    Brace, Bracket, Error, ExprParenthesized, Ident, Paren, Parse, ParseBuffer, Peek, Result,
-    attrset::ExprAttrSet, bracketed, lit::ExprLit,
-};
+use crate::*;
 
 #[derive(Debug)]
 pub struct ExprList {
@@ -33,7 +30,14 @@ impl Parse for ExprList {
 
         while !bracketed.is_empty() {
             let entry = if bracketed.peek(Ident) {
-                ListEntry::Ident(bracketed.parse()?)
+                let base: Ident = bracketed.parse()?;
+
+                if <Token![.]>::peek(&bracketed) {
+                    let access = AttributeAccess::parse_rest(Expr::Ident(base), &mut bracketed)?;
+                    ListEntry::AttributeAccess(access)
+                } else {
+                    ListEntry::Ident(base)
+                }
             } else if bracketed.peek(Paren) {
                 ListEntry::Parenthesized(bracketed.parse()?)
             } else if bracketed.peek(Bracket) {
@@ -42,6 +46,8 @@ impl Parse for ExprList {
                 ListEntry::AttrSet(bracketed.parse()?)
             } else if ExprLit::peek(&bracketed) {
                 ListEntry::Lit(bracketed.parse()?)
+            } else if Path::peek(&bracketed) {
+                ListEntry::Path(bracketed.parse()?)
             } else {
                 let msg = "Expected list entry.";
                 return Err(Error::new(bracketed.span(), msg));
@@ -61,4 +67,6 @@ pub enum ListEntry {
     List(ExprList),
     AttrSet(ExprAttrSet),
     Lit(ExprLit),
+    Path(Path),
+    AttributeAccess(AttributeAccess),
 }

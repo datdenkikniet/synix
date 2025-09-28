@@ -120,7 +120,7 @@ pub enum Expr {
     FunctionCall(Box<ExprFunctionCall>),
     Binary(Box<ExprBinary>),
     AttributeAccess(Box<AttributeAccess>),
-    Path(Path),
+    Path(Box<Path>),
 }
 
 impl Expr {
@@ -169,7 +169,7 @@ impl Parse for Expr {
             Self::With(Box::new(with))
         } else if Path::peek(input) {
             let path = input.parse()?;
-            Self::Path(path)
+            Self::Path(Box::new(path))
         } else if input.peek(Ident) {
             let ident = input.parse()?;
             Self::Ident(ident)
@@ -190,7 +190,9 @@ impl Parse for Expr {
                 let operator = input.parse()?;
                 let binary = ExprBinary::parse_rest(output, operator, input)?;
                 Self::Binary(Box::new(binary))
-            } else {
+            }
+            // TODO: remove this hack
+            else if !<Token![;]>::peek(input) {
                 let body = input.parse()?;
                 let span = start.join(&input.span());
 
@@ -225,6 +227,8 @@ impl Parse for Expr {
 
                     Self::FunctionCall(Box::new(function_call))
                 }
+            } else {
+                output
             }
         };
 
@@ -284,22 +288,6 @@ impl<'a> ParseBuffer<'a> {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    // TODO: make this less scan-y
-    pub fn until<'b, P: Peek>(&'b mut self) -> ParseBuffer<'b> {
-        let forked = self.fork();
-        let mut len = 0;
-
-        while !Self::is_empty(self) && !P::peek(self) {
-            len += 1;
-            self.next();
-        }
-
-        Self {
-            trees: &forked.trees[..len],
-            last_span: None,
-        }
     }
 }
 

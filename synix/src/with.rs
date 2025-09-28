@@ -30,8 +30,8 @@ impl Parse for ExprWith {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let with = buffer.parse()?;
 
-        let mut inner = buffer.until::<Token![;]>();
-        let expr = inner.parse()?;
+        // TODO: probably delimit by ; and paren or something
+        let expr = buffer.parse()?;
 
         let semicolon = buffer.parse()?;
         let body = buffer.parse()?;

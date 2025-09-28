@@ -151,12 +151,13 @@ pub enum PathPrefixKind {
 #[derive(Debug)]
 pub struct DirPath {
     pub prefix: PathPrefix,
-    pub parts: Vec<PathPart>,
+    pub head: PathPart,
+    pub tail: Vec<PathPart>,
 }
 
 impl DirPath {
     pub fn span(&self) -> Span {
-        self.parts
+        self.tail
             .iter()
             .fold(self.prefix.span(), |all, ident| all.join(&ident.span()))
     }
@@ -172,20 +173,22 @@ impl Parse for DirPath {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let prefix = PathPrefix::parse(buffer)?;
 
-        let mut parts = Vec::new();
+        let mut tail = Vec::new();
 
-        if prefix.kind == PathPrefixKind::None {
-            let first = buffer.parse()?;
-            parts.push(PathPart::Ident(LiteralOrInterpolatedIdent::Literal(first)));
-        }
+        let head = if prefix.kind == PathPrefixKind::None {
+            let head = buffer.parse()?;
+            PathPart::Ident(LiteralOrInterpolatedIdent::Literal(head))
+        } else {
+            buffer.parse()?
+        };
 
         while buffer.peek(Slash) {
             let _ = <Token![/]>::parse(buffer)?;
             let part = buffer.parse()?;
-            parts.push(part);
+            tail.push(part);
         }
 
-        Ok(Self { prefix, parts })
+        Ok(Self { prefix, head, tail })
     }
 }
 
@@ -216,7 +219,7 @@ impl Parse for LookupPath {
 
         let mut tail = Vec::new();
 
-        while <Token![/]>::peek(buffer) {
+        while buffer.peek(Slash) {
             let _ = <Token![/]>::parse(buffer)?;
             let ident = buffer
                 .parse()

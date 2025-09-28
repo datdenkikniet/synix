@@ -57,22 +57,20 @@ impl Parse for AssignmentInherit {
         let start = buffer.span();
         let inherit = buffer.parse()?;
 
-        let inner = &mut buffer.until::<Token![;]>();
-
-        let base = if inner.peek(Paren) {
+        let base = if buffer.peek(Paren) {
             let mut expr;
-            parenthesized!(inner as expr else "Expected parenthesized expression");
+            parenthesized!(buffer as expr else "Expected parenthesized expression");
             Some(expr.parse()?)
         } else {
             None
         };
 
         let mut names = Vec::new();
-        while !ParseBuffer::is_empty(inner) {
-            let ident = match LiteralOrInterpolatedIdent::parse(inner)? {
+        while !<Token![;]>::peek(buffer) {
+            let ident = match LiteralOrInterpolatedIdent::parse(buffer)? {
                 Literal(ident) => ident,
                 Interpolated(_) => {
-                    let msg = "Interpolated identifiers not allowed in this context";
+                    let msg = "Interpolated identifiers not allowed in inherit context";
                     return Err(Error::new(buffer.span(), msg));
                 }
             };
@@ -113,17 +111,17 @@ impl AssignmentNamed {
 impl Parse for AssignmentNamed {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let start = buffer.span();
-        let inner = &mut buffer.until::<Token![;]>();
-        let head = inner.parse()?;
+        let head = buffer.parse()?;
 
         let mut tail = Vec::new();
-        while <Token![.]>::peek(inner) {
-            let _ = <Token![.]>::parse(inner)?;
-            tail.push(inner.parse()?);
+        while <Token![.]>::peek(buffer) {
+            let _ = <Token![.]>::parse(buffer)?;
+            tail.push(buffer.parse()?);
         }
 
-        let eq = inner.parse()?;
-        let value = inner.parse()?;
+        let eq = buffer.parse()?;
+
+        let value = buffer.parse()?;
 
         let semicolon = buffer.parse()?;
 

@@ -1,9 +1,11 @@
+use crate::ident::LiteralOrInterpolatedIdent;
 use crate::*;
-use crate::{Brace, Expr, Ident, Parse, Peek, braced};
+use crate::{Brace, Expr, Parse, Peek, braced};
 
 #[derive(Debug)]
 pub struct ExprAttrSet {
-    pub entries: Vec<Assignment>,
+    pub rec: Option<Token![rec]>,
+    pub assignments: Vec<Assignment>,
     span: Span,
 }
 
@@ -13,39 +15,49 @@ impl ExprAttrSet {
     }
 }
 
+impl Peek for ExprAttrSet {
+    fn peek(input: &crate::ParseBuffer) -> bool {
+        input.peek(Brace) || <Token![rec]>::peek(input)
+    }
+}
+
 impl Parse for ExprAttrSet {
     fn parse(buffer: &mut crate::ParseBuffer) -> crate::Result<Self> {
+        let rec = if <Token![rec]>::peek(buffer) {
+            Some(buffer.parse()?)
+        } else {
+            None
+        };
+
         let mut braced;
         braced!(buffer as braced else "Expected attribute set.");
 
         let span = braced.span();
-        let mut entries = Vec::new();
+        let mut assignments = Vec::new();
         while !braced.is_empty() {
-            entries.push(braced.parse()?);
+            assignments.push(braced.parse()?);
         }
 
-        Ok(Self { entries, span })
-    }
-}
-
-impl Peek for ExprAttrSet {
-    fn peek(input: &crate::ParseBuffer) -> bool {
-        input.peek(Brace)
+        Ok(Self {
+            rec,
+            assignments,
+            span,
+        })
     }
 }
 
 #[derive(Debug)]
 pub struct AttributeAccess {
     pub set: Expr,
-    pub accessors: Vec<(Token![.], Ident)>,
+    pub accessors: Vec<LiteralOrInterpolatedIdent>,
 }
 
 impl AttributeAccess {
     pub fn span(&self) -> Span {
         let mut span = self.set.span();
 
-        for (dot, ident) in &self.accessors {
-            span = span.join(&dot.span).join(&ident.span());
+        for v in &self.accessors {
+            span = span.join(&v.span());
         }
 
         span
@@ -57,16 +69,19 @@ impl AttributeAccess {
 
     pub fn parse_rest(set: Expr, parser: &mut ParseBuffer) -> Result<Self> {
         if !Self::peek(&parser) {
-            return Err(Error::new(parser.span(), "Expected `.`"));
+            return Err(Error::new(
+                parser.span(),
+                "Expected `.` while parsing attribute access",
+            ));
         }
 
         let mut accessors = Vec::new();
 
         while <Token![.]>::peek(parser) {
-            let dot = parser.parse()?;
-            let field = parser.parse()?;
+            let _dot: Token![.] = parser.parse()?;
+            let accessor = parser.parse()?;
 
-            accessors.push((dot, field));
+            accessors.push(accessor);
         }
 
         Ok(Self { set, accessors })

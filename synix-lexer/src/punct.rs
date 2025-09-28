@@ -61,7 +61,7 @@ impl Lex for Punct {
         );
         let span = buffer.span_from(start);
 
-        let spacing = if buffer.peek().is_none() || buffer.skip_ws() {
+        let spacing = if buffer.peek().is_none() || buffer.skip_ws_and_comments() {
             Spacing::Alone
         } else {
             Spacing::Joint
