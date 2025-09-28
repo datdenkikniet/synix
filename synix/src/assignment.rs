@@ -96,35 +96,46 @@ impl Parse for AssignmentInherit {
 
 #[derive(Debug)]
 pub struct AssignmentNamed {
-    pub name: LiteralOrInterpolatedIdent,
+    pub head: LiteralOrInterpolatedIdent,
+    pub tail: Vec<LiteralOrInterpolatedIdent>,
     pub eq: Token![=],
     pub value: Expr,
     pub semicolon: Token![;],
+    span: Span,
 }
 
 impl AssignmentNamed {
     pub fn span(&self) -> Span {
-        self.name
-            .span()
-            .join(&self.eq.span)
-            .join(&self.value.span())
-            .join(&self.semicolon.span)
+        self.span.clone()
     }
 }
 
 impl Parse for AssignmentNamed {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
-        let mut buffer = buffer.until::<Token![;]>();
-        let name = buffer.parse()?;
-        let eq = buffer.parse()?;
-        let value = buffer.parse()?;
+        let start = buffer.span();
+        let inner = &mut buffer.until::<Token![;]>();
+        let head = inner.parse()?;
+
+        let mut tail = Vec::new();
+        while <Token![.]>::peek(inner) {
+            let _ = <Token![.]>::parse(inner)?;
+            tail.push(inner.parse()?);
+        }
+
+        let eq = inner.parse()?;
+        let value = inner.parse()?;
+
         let semicolon = buffer.parse()?;
 
+        let span = start.join(&buffer.span());
+
         Ok(Self {
-            name,
+            head,
+            tail,
             eq,
             value,
             semicolon,
+            span,
         })
     }
 }
