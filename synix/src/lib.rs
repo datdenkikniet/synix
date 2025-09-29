@@ -41,6 +41,11 @@ use crate::{
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[expect(non_snake_case)]
+pub fn Dot(tree: &TokenTree) -> bool {
+    punct_peek_helper(tree, Char::Dot)
+}
+
+#[expect(non_snake_case)]
 pub fn LitInt(tree: &TokenTree) -> bool {
     matches!(tree, TokenTree::Literal(Literal::Int(_)))
 }

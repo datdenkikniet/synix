@@ -36,23 +36,58 @@ impl Parse for Path {
 }
 
 #[derive(Debug)]
-pub enum PathPart {
-    Ident(LiteralOrInterpolatedIdent),
-    LitInt(LitInt),
-    LitFloat(LitFloat),
+pub struct PathPart {
+    pub head: PathSubPart,
+    pub tail: Vec<PathSubPart>,
 }
 
 impl PathPart {
     pub fn span(&self) -> Span {
-        match self {
-            PathPart::Ident(v) => v.span(),
-            PathPart::LitInt(v) => v.span(),
-            PathPart::LitFloat(v) => v.span(),
-        }
+        self.tail
+            .iter()
+            .fold(self.head.span(), |s, n| s.join(&n.span()))
     }
 }
 
 impl Parse for PathPart {
+    fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
+        let head = buffer.parse()?;
+
+        let mut tail = Vec::new();
+        while let Ok(part) = buffer.parse() {
+            let is_dot_and_alone =
+                matches!(&part, PathSubPart::Dot(dot) if !dot.spacing.is_joint());
+            tail.push(part);
+
+            if is_dot_and_alone {
+                break;
+            }
+        }
+
+        Ok(Self { head, tail })
+    }
+}
+
+#[derive(Debug)]
+pub enum PathSubPart {
+    Ident(LiteralOrInterpolatedIdent),
+    LitInt(LitInt),
+    LitFloat(LitFloat),
+    Dot(Punct),
+}
+
+impl PathSubPart {
+    pub fn span(&self) -> Span {
+        match self {
+            PathSubPart::Ident(v) => v.span(),
+            PathSubPart::LitInt(v) => v.span(),
+            PathSubPart::LitFloat(v) => v.span(),
+            PathSubPart::Dot(dot) => dot.span(),
+        }
+    }
+}
+
+impl Parse for PathSubPart {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
         let result = if buffer.peek(LitInt) {
             let int = buffer
@@ -83,6 +118,12 @@ impl Parse for PathPart {
         } else if LiteralOrInterpolatedIdent::peek(buffer) {
             let ident = buffer.parse()?;
             Self::Ident(ident)
+        } else if buffer.peek(Dot) {
+            let Some(TokenTree::Punct(punct)) = buffer.next() else {
+                unreachable!()
+            };
+
+            Self::Dot(punct.clone())
         } else {
             return Err(Error::new(buffer.span(), "Expected path part."));
         };
@@ -175,12 +216,7 @@ impl Parse for DirPath {
 
         let mut tail = Vec::new();
 
-        let head = if prefix.kind == PathPrefixKind::None {
-            let head = buffer.parse()?;
-            PathPart::Ident(LiteralOrInterpolatedIdent::Literal(head))
-        } else {
-            buffer.parse()?
-        };
+        let head = buffer.parse()?;
 
         while buffer.peek(Slash) {
             let _ = <Token![/]>::parse(buffer)?;

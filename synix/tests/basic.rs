@@ -28,6 +28,8 @@ fn parse_pretty_print(str: &str) -> Expr {
 
     println!("{arrows}");
 
+    println!("Error: {}", err.message());
+
     for leftover in lines {
         println!("{leftover}");
     }
@@ -38,7 +40,7 @@ fn parse_pretty_print(str: &str) -> Expr {
 #[test]
 pub fn basic() {
     let nix = r#"
-        { a = { b = 3; }; }
+        ./${test}.name
     "#;
 
     let expr = parse_pretty_print(nix);
