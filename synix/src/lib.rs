@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 pub mod attrset;
 pub mod binary;
+pub mod lambda;
 pub mod list;
 pub mod lit;
 pub mod path;
@@ -11,7 +12,6 @@ mod assignment;
 mod error;
 mod function_call;
 mod ident;
-mod lambda;
 mod r#let;
 mod parenthesized;
 mod with;
@@ -20,7 +20,7 @@ pub use assignment::{Assignment, AssignmentInherit, AssignmentNamed};
 pub use error::Error;
 pub use function_call::ExprFunctionCall;
 pub use ident::{Ident, InterpolatedIdent};
-pub use lambda::ExprLambda;
+use lambda::ExprLambda;
 pub use r#let::ExprLet;
 pub use parenthesized::ExprParenthesized;
 use synix_lexer::{
@@ -39,6 +39,11 @@ use crate::{
     path::Path,
 };
 pub type Result<T> = core::result::Result<T, Error>;
+
+#[expect(non_snake_case)]
+pub fn At(tree: &TokenTree) -> bool {
+    punct_peek_helper(tree, Char::At)
+}
 
 #[expect(non_snake_case)]
 pub fn Dot(tree: &TokenTree) -> bool {
@@ -197,7 +202,7 @@ impl Parse for Expr {
                 Self::Binary(Box::new(binary))
             }
             // TODO: remove this hack
-            else if !<Token![;]>::peek(input) {
+            else if !(<Token![;]>::peek(input) || <Token![,]>::peek(input)) {
                 let body = input.parse()?;
                 let span = start.join(&input.span());
 

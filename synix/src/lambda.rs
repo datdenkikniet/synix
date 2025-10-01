@@ -1,4 +1,5 @@
 use crate::Peek;
+use crate::token::At;
 use crate::*;
 
 #[derive(Debug)]
@@ -29,18 +30,12 @@ impl Parse for ExprLambda {
 
 impl Peek for ExprLambda {
     fn peek(input: &ParseBuffer) -> bool {
-        let is_ident = Ident::peek(input);
-
         let input = &mut input.fork();
-        let has_brace_group = {
-            let has_brace = input.peek(Brace);
-            let _ = input.next();
-            has_brace
-        };
+        let has_lambda_arg = LambdaArg::parse(input).is_ok();
 
         let followed_by_colon = <Token![:]>::parse(input).is_ok();
 
-        (is_ident || has_brace_group) && followed_by_colon
+        has_lambda_arg && followed_by_colon
     }
 }
 
@@ -61,14 +56,12 @@ impl LambdaArg {
 
 impl Parse for LambdaArg {
     fn parse(buffer: &mut ParseBuffer) -> Result<Self> {
-        let output = if buffer.peek(Ident) {
+        let output = if buffer.peek(Ident) && !buffer.peek_n(1, At) {
             let ident: Ident = buffer.parse()?;
             Self::Ident(ident)
-        } else if buffer.peek(Brace) {
+        } else {
             let set = buffer.parse()?;
             Self::AttrSet(set)
-        } else {
-            return Err(Error::new(buffer.span(), "Expected lambda argument"));
         };
 
         Ok(output)
@@ -77,40 +70,15 @@ impl Parse for LambdaArg {
 
 #[derive(Debug)]
 pub struct ArgAttrSet {
-    span: Span,
+    pub binds_to: Option<Ident>,
     pub args: Vec<ArgAttrSetValue>,
     pub ellipsis: Option<Token![...]>,
+    span: Span,
 }
 
 impl ArgAttrSet {
     pub fn span(&self) -> Span {
         self.span.clone()
-    }
-}
-
-#[derive(Debug)]
-pub struct ArgAttrSetValue {
-    pub ident: Ident,
-    pub default: Option<(Token![?], Expr)>,
-    pub comma: Option<Token![,]>,
-}
-
-impl ArgAttrSetValue {
-    pub fn span(&self) -> Span {
-        let ident = self.ident.span();
-        let default = self
-            .default
-            .as_ref()
-            .map(|(q, e)| q.span.join(&e.span()))
-            .unwrap_or(ident.clone());
-
-        let comma = self
-            .comma
-            .as_ref()
-            .map(|c| c.span.clone())
-            .unwrap_or(ident.clone());
-
-        ident.join(&default).join(&comma)
     }
 }
 
@@ -121,7 +89,22 @@ impl Parse for ArgAttrSet {
         let start = input.span();
 
         let mut group;
-        braced!(input as group else "Expected attribute set argument.");
+        let binds_to = if input.peek_n(1, At) {
+            if input.peek(Ident) {
+                let binds_to = input.parse()?;
+                let _at: At = input.parse()?;
+                braced!(input as group else "Expected attribute set argument.");
+                Some(binds_to)
+            } else {
+                braced!(input as group else "Expected attribute set argument.");
+                let _at: At = input.parse()?;
+                let binds_to = input.parse()?;
+                Some(binds_to)
+            }
+        } else {
+            braced!(input as group else "Expected attribute set argument.");
+            None
+        };
 
         let mut ellipsis = None;
         while !group.is_empty() {
@@ -142,14 +125,14 @@ impl Parse for ArgAttrSet {
             let ident = group.parse()?;
 
             let default = if <Token![?]>::peek(&group) {
-                let question = group.parse()?;
+                let _question: Token![?] = group.parse()?;
                 let value = group.parse()?;
-                Some((question, value))
+                Some(value)
             } else {
                 None
             };
 
-            let comma = if !group.is_empty() {
+            let _comma: Option<Token![,]> = if !group.is_empty() {
                 Some(group.parse()?)
             } else if group.peek(Comma) {
                 Some(group.parse()?)
@@ -157,11 +140,7 @@ impl Parse for ArgAttrSet {
                 None
             };
 
-            let arg = ArgAttrSetValue {
-                ident,
-                default,
-                comma,
-            };
+            let arg = ArgAttrSetValue { ident, default };
 
             args.push(arg);
         }
@@ -169,9 +148,28 @@ impl Parse for ArgAttrSet {
         let span = start.join(&group.span());
 
         Ok(Self {
+            binds_to,
             args,
             ellipsis,
             span,
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct ArgAttrSetValue {
+    pub ident: Ident,
+    pub default: Option<Expr>,
+}
+
+impl ArgAttrSetValue {
+    pub fn span(&self) -> Span {
+        let ident = self.ident.span();
+        let default = self
+            .default
+            .as_ref()
+            .map(|v| v.span())
+            .unwrap_or(ident.clone());
+        ident.join(&default)
     }
 }
